@@ -13,6 +13,7 @@ geo-projected = { path = "../geo-projected" }
 geo = { workspace = true }
 rgis-layer-messages = { path = "../rgis-layer-messages" }
 rgis-crs-messages = { path = "../rgis-crs-messages" }
+rgis-file-loader = { path = "../rgis-file-loader" }
 rgis-primitives = { path = "../rgis-primitives" }
 rgis-layers = { path = "../rgis-layers" }
 rgis-settings = { path = "../rgis-settings" }

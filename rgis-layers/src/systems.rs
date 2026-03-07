@@ -128,6 +128,10 @@ fn handle_create_layer_events(
 ) {
     for event in create_layer_events.drain() {
         let layer_id = layers.add(event.feature_collection, event.name, event.source_crs);
+        let Some(layer) = layers.get_mut(layer_id) else {
+            continue;
+        };
+        layer.current_lod = Some(0);
         layer_created_event_writer.write(rgis_layer_messages::LayerCreatedMessage(layer_id));
     }
 }

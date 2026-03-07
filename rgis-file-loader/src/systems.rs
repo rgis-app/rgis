@@ -119,6 +119,28 @@ fn handle_load_file_job_finished_events(
     }
 }
 
+fn handle_lod_builder_job_finished_events(
+    mut finished_jobs: bevy_jobs::FinishedJobs,
+    mut layers: ResMut<rgis_layers::Layers>,
+    mut layer_reprojected_event_writer: EventWriter<rgis_events::LayerReprojectedEvent>,
+) {
+    while let Some(outcome) = finished_jobs.take_next::<crate::lod_builder::LODBuilderJob>() {
+        match outcome {
+            Ok(outcome) => {
+                let Some(layer) = layers.get_mut(outcome.layer_id) else {
+                    continue;
+                };
+                layer.projected_feature_collection = Some(outcome.lods);
+                layer_reprojected_event_writer
+                    .write(rgis_events::LayerReprojectedEvent(outcome.layer_id));
+            }
+            Err(e) => {
+                bevy::log::error!("Encountered error when building LODs: {:?}", e);
+            }
+        }
+    }
+}
+
 pub fn configure(app: &mut App) {
     app.add_systems(
         Update,
@@ -126,6 +148,7 @@ pub fn configure(app: &mut App) {
             handle_network_fetch_finished_jobs,
             handle_load_file_events,
             handle_load_file_job_finished_events,
+            handle_lod_builder_job_finished_events,
         ),
     );
 }

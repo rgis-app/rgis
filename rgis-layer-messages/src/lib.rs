@@ -48,6 +48,9 @@ pub struct CreateLayerMessage {
 #[derive(Message)]
 pub struct LayerReprojectedMessage(pub rgis_primitives::LayerId);
 
+#[derive(Debug, Message)]
+pub struct LODChangedMessage(pub rgis_primitives::LayerId);
+
 #[derive(Message, Debug)]
 pub struct DuplicateLayerMessage(pub rgis_primitives::LayerId);
 
@@ -70,6 +73,7 @@ impl bevy::app::Plugin for Plugin {
             .add_message::<MoveLayerMessage>()
             .add_message::<LayerZIndexUpdatedMessage>()
             .add_message::<LayerReprojectedMessage>()
+            .add_message::<LODChangedMessage>()
             .add_message::<CreateLayerMessage>()
             .add_message::<DuplicateLayerMessage>()
             .add_message::<CreateRasterLayerMessage>();

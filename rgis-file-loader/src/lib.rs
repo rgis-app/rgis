@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 
 mod jobs;
+pub mod lod_builder;
 mod systems;
+
+pub use lod_builder::{LODBuilderJob, LODBuilderJobOutcome};
 
 pub struct Plugin;
 

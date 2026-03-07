@@ -51,13 +51,14 @@ fn handle_picking_click(
 
 fn layer_loaded(
     layers: Res<rgis_layers::Layers>,
-    mut event_reader: MessageReader<rgis_layer_messages::LayerReprojectedMessage>,
+    mut event_reader: MessageReader<rgis_layer_messages::LODChangedMessage>,
     mut job_spawner: bevy_jobs::JobSpawner,
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes_spawned_event_writer: MessageWriter<rgis_renderer_messages::MeshesSpawnedMessage>,
+    query: LayerEntitiesWithColorMaterialsOrImagesQuery,
 ) {
     for event in event_reader.read() {
         let Some(layer) = layers.get(event.0) else {
@@ -82,10 +83,16 @@ fn layer_loaded(
                 meshes_spawned_event_writer.write(event.0.into());
                 crate::RENDERED_LAYER_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
-            rgis_layers::LayerData::Vector {
-                projected_feature_collection: Some(feature_collection),
-                ..
-            } => {
+            rgis_layers::LayerData::Vector { .. } => {
+                let Some(feature_collection) = layer.get_current_lod_feature_collection() else {
+                    continue;
+                };
+
+                // Despawn old meshes before spawning new ones
+                for (_, entity) in query.iter().filter(|(i, _)| **i == layer.id) {
+                    commands.entity(entity).despawn();
+                }
+
                 job_spawner.spawn(MeshBuildingJob {
                     layer_id: layer.id,
                     geometry: geo::Geometry::GeometryCollection(
@@ -107,6 +114,7 @@ fn handle_mesh_building_job_outcome(
     mut meshes_spawned_event_writer: MessageWriter<rgis_renderer_messages::MeshesSpawnedMessage>,
     mut finished_jobs: bevy_jobs::FinishedJobs,
     asset_server: Res<AssetServer>,
+    query: LayerEntitiesWithColorMaterialsOrImagesQuery,
 ) {
     while let Some(outcome) = finished_jobs.take_next::<MeshBuildingJob>() {
         let crate::jobs::MeshBuildingJobOutcome {
@@ -123,6 +131,11 @@ fn handle_mesh_building_job_outcome(
         let Some(layer_with_index) = layers.get_with_index(layer_id) else {
             continue;
         };
+
+        // Despawn old meshes before spawning new ones
+        for (_, entity) in query.iter().filter(|(i, _)| **i == layer_id) {
+            commands.entity(entity).despawn();
+        }
 
         crate::spawn_geometry_meshes(
             geometry_mesh,
@@ -363,6 +376,13 @@ fn handle_crs_changed_events(
 
 type CameraGlobalTransformQuery<'world, 'state, 'a> =
     Query<'world, 'state, &'a GlobalTransform, (With<Camera>, Changed<GlobalTransform>)>;
+
+type LayerEntitiesWithColorMaterialsOrImagesQuery<'world, 'state, 'a> = Query<
+    'world,
+    'state,
+    (&'a rgis_primitives::LayerId, Entity),
+    Or<(With<MeshMaterial2d<ColorMaterial>>, With<Sprite>)>,
+>;
 
 fn handle_camera_scale_changed_event(
     query: CameraGlobalTransformQuery,

@@ -9,12 +9,14 @@ workspace = true
 
 [dependencies]
 bevy = { workspace = true }
+geo = { workspace = true }
 geo-features = { path = "../geo-features" }
 geo-file-loader = { path = "../geo-file-loader" }
 geo-projected = { path = "../geo-projected" }
 geo-raster = { path = "../geo-raster" }
 rgis-file-loader-messages = { path = "../rgis-file-loader-messages" }
 rgis-layer-messages = { path = "../rgis-layer-messages" }
+rgis-layers = { path = "../rgis-layers" }
 bevy_jobs = { workspace = true }
 bevy_jobs_fetch = { workspace = true }
 bytes = { workspace = true }

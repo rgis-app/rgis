@@ -1,8 +1,15 @@
 use bevy::prelude::*;
 use geo::contains::Contains;
+use std::collections::BTreeMap;
+use std::sync;
 use std::sync::Arc;
 
 mod systems;
+
+#[derive(Clone, Debug, Default)]
+pub struct ProjectedFeatureCollectionWithLOD {
+    pub projected: BTreeMap<u8, geo_features::FeatureCollection<geo_projected::ProjectedScalar>>,
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct LayerIndex(pub usize);
@@ -67,28 +74,35 @@ impl Layers {
         &self,
         coord: geo_projected::ProjectedCoord,
     ) -> impl Iterator<Item = &Layer> {
-        self.iter_top_to_bottom()
-            .filter(move |layer| match &layer.data {
-                LayerData::Vector {
-                    projected_feature_collection: Some(projected),
-                    ..
-                } => projected.contains(&coord),
+        self.iter_top_to_bottom().filter(move |layer| {
+            match &layer.data {
+                LayerData::Vector { .. } => {
+                    layer
+                        .get_current_lod_feature_collection()
+                        .map_or(false, |p| p.contains(&coord))
+                }
                 _ => false,
-            })
+            }
+        })
     }
 
     fn feature_collections_iter(&'_ self) -> impl Iterator<Item = FeatureCollectionsIterItem<'_>> {
-        self.iter_top_to_bottom().filter_map(|layer| match &layer.data {
-            LayerData::Vector {
-                unprojected_feature_collection,
-                projected_feature_collection: Some(projected),
-                ..
-            } => Some(FeatureCollectionsIterItem {
-                layer,
-                unprojected: unprojected_feature_collection,
-                projected,
-            }),
-            _ => None,
+        self.iter_top_to_bottom().filter_map(|layer| {
+            match &layer.data {
+                LayerData::Vector {
+                    unprojected_feature_collection,
+                    ..
+                } => {
+                    layer
+                        .get_current_lod_feature_collection()
+                        .map(|projected| FeatureCollectionsIterItem {
+                            layer,
+                            unprojected: unprojected_feature_collection,
+                            projected,
+                        })
+                }
+                _ => None,
+            }
         })
     }
 
@@ -185,6 +199,7 @@ impl Layers {
                 projected_feature_collection: None,
                 geom_type,
             },
+            current_lod: None,
             color: if geom_type.has_fill() {
                 LayerColor {
                     fill: Some(colorous_color_to_bevy_color(color)),
@@ -215,6 +230,7 @@ impl Layers {
         let layer_id = self.next_layer_id();
         let layer = Layer {
             data: LayerData::Raster { raster, projected_grid: None },
+            current_lod: None,
             color: LayerColor {
                 fill: None,
                 stroke: Color::WHITE,
@@ -242,11 +258,16 @@ impl Layers {
                     *projected_grid = None;
                 }
             }
+            layer.current_lod = None;
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Layer> {
         self.data.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Layer> {
+        self.data.iter_mut()
     }
 }
 
@@ -261,8 +282,7 @@ pub enum LayerData {
     Vector {
         unprojected_feature_collection:
             Arc<geo_features::FeatureCollection<geo_projected::UnprojectedScalar>>,
-        projected_feature_collection:
-            Option<geo_features::FeatureCollection<geo_projected::ProjectedScalar>>,
+        projected_feature_collection: Option<ProjectedFeatureCollectionWithLOD>,
         geom_type: geo_geom_type::GeomType,
     },
     Raster {
@@ -274,6 +294,7 @@ pub enum LayerData {
 #[derive(Debug)]
 pub struct Layer {
     pub data: LayerData,
+    pub current_lod: Option<u8>,
     pub color: LayerColor,
     pub id: rgis_primitives::LayerId,
     pub name: String,
@@ -283,6 +304,24 @@ pub struct Layer {
 }
 
 impl Layer {
+    pub fn get_current_lod_feature_collection(
+        &self,
+    ) -> Option<&geo_features::FeatureCollection<geo_projected::ProjectedScalar>> {
+        let lod = self.current_lod?;
+        match &self.data {
+            LayerData::Vector {
+                projected_feature_collection,
+                ..
+            } => {
+                projected_feature_collection
+                    .as_ref()?
+                    .projected
+                    .get(&lod)
+            }
+            _ => None,
+        }
+    }
+
     pub fn is_vector(&self) -> bool {
         matches!(self.data, LayerData::Vector { .. })
     }
@@ -313,21 +352,12 @@ impl Layer {
     pub fn projected_feature_collection(
         &self,
     ) -> Option<&geo_features::FeatureCollection<geo_projected::ProjectedScalar>> {
-        match &self.data {
-            LayerData::Vector {
-                projected_feature_collection,
-                ..
-            } => projected_feature_collection.as_ref(),
-            LayerData::Raster { .. } => None,
-        }
+        self.get_current_lod_feature_collection()
     }
 
     pub fn is_active(&self) -> bool {
         match &self.data {
-            LayerData::Vector {
-                projected_feature_collection,
-                ..
-            } => projected_feature_collection.is_some(),
+            LayerData::Vector { .. } => self.get_current_lod_feature_collection().is_some(),
             LayerData::Raster { projected_grid, .. } => projected_grid.is_some(),
         }
     }
@@ -343,21 +373,15 @@ impl Layer {
     pub fn get_projected_feature_collection_or_log(
         &self,
     ) -> Option<&geo_features::FeatureCollection<geo_projected::ProjectedScalar>> {
-        match &self.data {
-            LayerData::Vector {
-                projected_feature_collection,
-                ..
-            } => match projected_feature_collection.as_ref() {
-                Some(p) => Some(p),
-                None => {
-                    bevy::log::error!(
-                        "Expected layer (id: {:?}) to have a projected feature collection",
-                        self.id
-                    );
-                    None
-                }
-            },
-            LayerData::Raster { .. } => None,
+        match self.get_current_lod_feature_collection() {
+            Some(p) => Some(p),
+            None => {
+                error!(
+                    "Expected layer (id: {:?}) to have a projected feature collection for LOD {:?}",
+                    self.id, self.current_lod
+                );
+                None
+            }
         }
     }
 
