@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::egui;
 use rgis_layer_messages::DuplicateLayerMessage;
-use rgis_ui_messages::{UpdateLayerColorMessage, UpdateLayerPointSizeMessage};
+use rgis_ui_messages::{UpdateLayerColorMessage, UpdateLayerPointSizeMessage, UpdateLayerStrokeWidthMessage};
 
 pub struct ManageLayer<'a> {
     pub state: &'a mut crate::ManageLayerWindowState,
@@ -9,6 +9,7 @@ pub struct ManageLayer<'a> {
     pub egui_ctx: &'a mut bevy_egui::egui::Context,
     pub color_events: &'a mut Messages<UpdateLayerColorMessage>,
     pub point_size_events: &'a mut Messages<UpdateLayerPointSizeMessage>,
+    pub stroke_width_events: &'a mut Messages<UpdateLayerStrokeWidthMessage>,
     pub duplicate_layer_events: &'a mut Messages<DuplicateLayerMessage>,
 }
 
@@ -75,6 +76,14 @@ impl ManageLayer<'_> {
                                 });
                                 ui.end_row();
                             }
+                            let response = ui.label("Stroke width");
+                            crate::widget_registry::register("Stroke width", response.rect);
+                            ui.add(crate::widgets::stroke_width::StrokeWidth {
+                                layer_id,
+                                width: layer.stroke_width,
+                                width_events: self.stroke_width_events,
+                            });
+                            ui.end_row();
                         }
                     });
                 ui.separator();

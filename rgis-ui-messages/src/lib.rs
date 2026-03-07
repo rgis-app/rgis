@@ -32,6 +32,9 @@ pub enum UpdateLayerColorMessage {
 #[derive(Message, Debug)]
 pub struct UpdateLayerPointSizeMessage(pub rgis_primitives::LayerId, pub f32);
 
+#[derive(Message, Debug)]
+pub struct UpdateLayerStrokeWidthMessage(pub rgis_primitives::LayerId, pub f32);
+
 #[derive(Message)]
 pub struct OpenOperationWindowMessage {
     pub operation: Box<dyn Send + Sync + rgis_geo_ops::Operation>,
@@ -56,6 +59,7 @@ impl bevy::app::Plugin for Plugin {
             .add_message::<RenderFeaturePropertiesMessage>()
             .add_message::<UpdateLayerColorMessage>()
             .add_message::<UpdateLayerPointSizeMessage>()
+            .add_message::<UpdateLayerStrokeWidthMessage>()
             .add_message::<OpenOperationWindowMessage>()
             .add_message::<PerformOperationMessage>();
     }

@@ -60,6 +60,7 @@ fn render_manage_layer_window(
     layers: Res<rgis_layers::Layers>,
     mut color_events: ResMut<Messages<rgis_ui_messages::UpdateLayerColorMessage>>,
     mut point_size_events: ResMut<Messages<rgis_ui_messages::UpdateLayerPointSizeMessage>>,
+    mut stroke_width_events: ResMut<Messages<rgis_ui_messages::UpdateLayerStrokeWidthMessage>>,
     mut show_manage_layer_window_event_reader: MessageReader<
         rgis_ui_messages::ShowManageLayerWindowMessage,
     >,
@@ -76,6 +77,7 @@ fn render_manage_layer_window(
         egui_ctx: bevy_egui_ctx_mut,
         color_events: &mut color_events,
         point_size_events: &mut point_size_events,
+        stroke_width_events: &mut stroke_width_events,
         duplicate_layer_events: &mut duplicate_layer_events,
     }
     .render();

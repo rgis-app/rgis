@@ -201,6 +201,7 @@ impl Layers {
             id: layer_id,
             crs,
             point_size: 5.0,
+            stroke_width: 1.0,
         };
         self.data.push(layer);
         layer_id
@@ -224,6 +225,7 @@ impl Layers {
             id: layer_id,
             crs,
             point_size: 5.0,
+            stroke_width: 1.0,
         };
         self.data.push(layer);
         layer_id
@@ -280,6 +282,7 @@ pub struct Layer {
     pub visible: bool,
     pub crs: rgis_primitives::Crs,
     pub point_size: f32,
+    pub stroke_width: f32,
 }
 
 impl Layer {
