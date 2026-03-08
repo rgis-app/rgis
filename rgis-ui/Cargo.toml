@@ -33,3 +33,6 @@ geo = { workspace = true }
 geodesy = { workspace = true }
 rgis-crs = { path = "../rgis-crs" }
 geo-geodesy = { workspace = true }
+bevy_log = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

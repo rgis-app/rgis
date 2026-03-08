@@ -76,6 +76,8 @@ geodesy = "0.15"
 geozero = { git = "https://github.com/georust/geozero.git", branch = "main" }
 num-t = "5"
 rfd = "0.17"
+tracing = "0.1"
+tracing-subscriber = "0.3"
 geo-types = "0.7"
 getrandom = { version = "0.2", features = ["js"] }
 async-tiff = { git = "https://github.com/developmentseed/async-tiff", default-features = false, features = ["lzma"] }

@@ -20,6 +20,9 @@
         height: 100vh !important;
         min-width: 0 !important;
         min-height: 0 !important;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
       }
     </style>
     <script src="https://cdn.usefathom.com/script.js" data-site="FSAPVAUO" defer></script>
@@ -62,8 +65,8 @@
     </div>
     <canvas id="rgis"></canvas>
     <script>
-      /* oncontextmenu: disable right click menu */
       document.body.addEventListener("contextmenu", e => e.preventDefault());
+      document.body.addEventListener("dragstart", e => e.preventDefault());
     </script>
     <script src="./bootstrap.js"></script>
   </body>

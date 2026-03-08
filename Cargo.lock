@@ -5797,6 +5797,7 @@ dependencies = [
  "bevy_egui",
  "bevy_egui_window",
  "bevy_jobs",
+ "bevy_log",
  "dark-light",
  "egui_plot",
  "geo",
@@ -5817,6 +5818,8 @@ dependencies = [
  "rgis-settings",
  "rgis-ui-messages",
  "rgis-units",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

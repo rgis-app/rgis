@@ -597,6 +597,9 @@ fn render_top(
     mut is_debug_window_open: ResMut<
         bevy_egui_window::IsWindowOpen<crate::windows::debug::Debug<'static, 'static>>,
     >,
+    mut is_logs_window_open: ResMut<
+        bevy_egui_window::IsWindowOpen<crate::windows::logs::Logs<'static>>,
+    >,
     mut show_add_layer_window_event_writer: MessageWriter<rgis_ui_messages::ShowAddLayerWindowMessage>,
     mut clear_color: ResMut<ClearColor>,
     asset_server: Res<AssetServer>,
@@ -635,6 +638,7 @@ fn render_top(
         next_tool: &mut next_tool,
         top_panel_height: &mut top_panel_height,
         is_debug_window_open: &mut is_debug_window_open,
+        is_logs_window_open: &mut is_logs_window_open,
         show_add_layer_window_event_writer: &mut show_add_layer_window_event_writer,
         clear_color: &mut clear_color,
         logo_texture_id,
@@ -860,11 +864,17 @@ pub fn configure(app: &mut App) {
     );
 
     crate::windows::debug::Debug::setup(app);
+    crate::windows::logs::Logs::setup(app);
     crate::windows::welcome::Welcome::setup(app);
     app.add_systems(
         EguiPrimaryContextPass,
         bevy_egui_window::render_window_system::<crate::windows::debug::Debug>
             .run_if(bevy_egui_window::run_if_is_window_open::<crate::windows::debug::Debug>),
+    );
+    app.add_systems(
+        EguiPrimaryContextPass,
+        bevy_egui_window::render_window_system::<crate::windows::logs::Logs>
+            .run_if(bevy_egui_window::run_if_is_window_open::<crate::windows::logs::Logs>),
     );
     app.add_systems(
         EguiPrimaryContextPass,
