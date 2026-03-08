@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+pub mod log_buffer;
 mod panels;
 pub mod save_file;
 mod systems;

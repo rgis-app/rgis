@@ -12,6 +12,8 @@ pub struct Top<'a, 'w> {
     pub top_panel_height: &'a mut rgis_units::TopPanelHeight,
     pub is_debug_window_open:
         &'a mut window::IsWindowOpen<crate::windows::debug::Debug<'static, 'static>>,
+    pub is_logs_window_open:
+        &'a mut window::IsWindowOpen<crate::windows::logs::Logs<'static>>,
     pub show_add_layer_window_event_writer:
         &'a mut MessageWriter<'w, rgis_ui_messages::ShowAddLayerWindowMessage>,
     pub clear_color: &'a mut ClearColor,
@@ -78,6 +80,11 @@ impl Top<'_, '_> {
                     crate::widget_registry::register("Debug stats", debug_btn.rect);
                     if debug_btn.clicked() {
                         self.is_debug_window_open.0 = true;
+                    }
+                    let logs_btn = ui.button("Logs");
+                    crate::widget_registry::register("Logs", logs_btn.rect);
+                    if logs_btn.clicked() {
+                        self.is_logs_window_open.0 = true;
                     }
                     let source_btn = ui.button("Source code");
                     crate::widget_registry::register("Source code", source_btn.rect);

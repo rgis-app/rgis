@@ -67,7 +67,10 @@ pub fn run() {
             })
             .disable::<bevy::log::LogPlugin>(),
     );
-    app.add_plugins(bevy::log::LogPlugin::default());
+    app.add_plugins(bevy::log::LogPlugin {
+        custom_layer: rgis_ui::log_buffer::create_log_layer,
+        ..default()
+    });
     app.add_plugins(MeshPickingPlugin);
     app.add_plugins(rgis_ui::Plugin);
     app.add_plugins(rgis_layers::Plugin);
