@@ -23,6 +23,7 @@ members = [
     "rgis-crs",
     "rgis-primitives",
     "bevy_egui_window",
+    "rgis-basemap-spike",
 ]
 resolver = "2"
 

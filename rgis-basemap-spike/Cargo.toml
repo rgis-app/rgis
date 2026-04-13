@@ -1,0 +1,13 @@
+[package]
+name = "rgis-basemap-spike"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+bevy = { workspace = true }
+galileo = { git = "https://github.com/galileo-map/galileo", rev = "e2e5338ce5ad1168108e1742f8931409d45965b5" }
+galileo-types = { git = "https://github.com/galileo-map/galileo", rev = "e2e5338ce5ad1168108e1742f8931409d45965b5" }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

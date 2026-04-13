@@ -126,6 +126,8 @@ pub fn run() {
     app.add_plugins(rgis_transform::Plugin);
     app.add_plugins(rgis_settings::Plugin);
     app.add_plugins(rgis_crs::Plugin::default());
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_plugins(rgis_basemap_spike::Plugin);
 
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref args) = cli_args {
