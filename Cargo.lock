@@ -6498,7 +6498,6 @@ dependencies = [
  "bevy",
  "galileo",
  "galileo-types",
- "image 0.25.9",
  "tokio",
 ]
 
