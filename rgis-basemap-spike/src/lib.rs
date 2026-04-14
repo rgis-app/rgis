@@ -179,11 +179,12 @@ fn refresh_basemap(
             response.rgba.len()
         );
         debug_dump_png(&response.rgba);
-        let new_handle = images.add(rgba_to_image(response.rgba));
-        if let Ok((_, mut sprite)) = sprite_query.single_mut() {
-            sprite.image = new_handle.clone();
+        // Replace the asset in-place at the existing handle so Bevy's render
+        // world re-extracts into the same texture slot. Handle swap (add + new
+        // handle) works in debug but races with asset extraction in release.
+        if let Err(e) = images.insert(&state.image_handle, rgba_to_image(response.rgba)) {
+            warn!("rgis_basemap_spike: failed to insert basemap image: {e:?}");
         }
-        state.image_handle = new_handle;
         state.last_render = Some(response.snapshot);
         state.in_flight = false;
     }

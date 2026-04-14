@@ -95,3 +95,6 @@ strip = true
 
 [patch.crates-io]
 dbase = { git = "https://github.com/tmontaigu/dbase-rs.git" }       # https://github.com/tmontaigu/dbase-rs/commit/be4372bd28c9de97531b00099872dcb86e16c1ce
+# Renames simd_fmin/simd_fmax to simd_minimum_number_nsz/simd_maximum_number_nsz
+# to fix https://github.com/servo/pathfinder/issues/584 on nightly 2026-03-31+.
+pathfinder_simd = { git = "https://github.com/PaulWagener/pathfinder", branch = "rename-simd-fmin-fmax" }
