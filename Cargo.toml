@@ -56,7 +56,7 @@ bevy = { version = "0.18", default-features = false, features = [
     "wayland",
     "png",
 ] }
-bevy_egui = { git = "https://github.com/frewsxcv/bevy_egui", branch = "integrate-egui-wgpu" }
+bevy_egui = { git = "https://github.com/frewsxcv/bevy_egui", branch = "main" }
 bevy_jobs = { git = "https://github.com/frewsxcv/bevy_jobs", rev = "7b412d4ea7f0b7ed65ed7c4e3c8145d59c0df03e" }
 bevy_jobs_fetch = { git = "https://github.com/frewsxcv/bevy_jobs", rev = "7b412d4ea7f0b7ed65ed7c4e3c8145d59c0df03e" }
 bevy_log = "0.18"

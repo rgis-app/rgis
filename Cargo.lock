@@ -1034,7 +1034,7 @@ dependencies = [
 [[package]]
 name = "bevy_egui"
 version = "0.39.1"
-source = "git+https://github.com/frewsxcv/bevy_egui?branch=integrate-egui-wgpu#611f4831207678c81176fc22f1923b86b39d9b43"
+source = "git+https://github.com/frewsxcv/bevy_egui?branch=main#2b64204e91ce35efc1044f4049267cfa3734d65f"
 dependencies = [
  "arboard",
  "bevy_app",
