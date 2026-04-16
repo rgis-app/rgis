@@ -30,6 +30,7 @@ rgis-ui-messages = { path = "../rgis-ui-messages" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rgis-cli = { path = "../rgis-cli" }
+rgis-basemap-spike = { path = "../rgis-basemap-spike" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = { workspace = true }
