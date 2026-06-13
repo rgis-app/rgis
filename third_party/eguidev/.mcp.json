@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "eguidev_basic": {
+      "command": "cargo",
+      "args": ["run", "--bin", "edev", "--", "mcp"]
+    }
+  }
+}

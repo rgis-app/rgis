@@ -49,6 +49,11 @@ impl Bottom<'_> {
     pub fn render(&mut self) {
         let inner_response = egui::TopBottomPanel::bottom("bottom").show(self.egui_ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
+                crate::dev_ui::label(
+                    ui,
+                    "app-version",
+                    format!("rgis v{}", env!("CARGO_PKG_VERSION")),
+                );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     self.render_crs(ui);
                     ui.separator();
@@ -60,25 +65,25 @@ impl Bottom<'_> {
     }
 
     fn render_crs(&mut self, ui: &mut egui::Ui) {
-        let edit_btn = ui.button("Edit");
+        let edit_btn = crate::dev_ui::button(ui, "edit-crs", "Edit");
         crate::widget_registry::register("Edit CRS", edit_btn.rect);
         if edit_btn.clicked() {
             self.change_crs_window_visible.0 = true;
         }
 
         match self.target_crs.0.epsg_code {
-            Some(code) => ui.label(format!("CRS: EPSG:{code}")),
-            None => ui.label("CRS: Custom PROJ"),
+            Some(code) => crate::dev_ui::label(ui, "crs-readout", format!("CRS: EPSG:{code}")),
+            None => crate::dev_ui::label(ui, "crs-readout", "CRS: Custom PROJ"),
         };
     }
 
     fn render_mouse_position(&mut self, ui: &mut egui::Ui) {
         if let Some((lat, lng)) = self.cached_latlng {
-            ui.label(format!("Lat: {lat:.6}  Lng: {lng:.6}"));
+            crate::dev_ui::label(ui, "coords-readout", format!("Lat: {lat:.6}  Lng: {lng:.6}"));
         } else {
             let x = self.mouse_pos.0.x.0;
             let y = self.mouse_pos.0.y.0;
-            ui.label(format!("X: {x:.2}  Y: {y:.2}"));
+            crate::dev_ui::label(ui, "coords-readout", format!("X: {x:.2}  Y: {y:.2}"));
         }
     }
 }

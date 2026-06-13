@@ -1,0 +1,25 @@
+[package]
+name = "eguidev"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories = ["development-tools", "gui"]
+description = "AI-assisted development tooling and in-process instrumentation for egui apps"
+
+[lints]
+workspace = true
+
+[dependencies]
+egui.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+eframe.workspace = true

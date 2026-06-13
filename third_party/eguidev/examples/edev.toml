@@ -1,0 +1,65 @@
+# Example .edev.toml -- copy to your project root as .edev.toml and edit.
+#
+# edev discovers this file by walking from the current directory upward,
+# stopping at the nearest git root. Use --config <path> to override.
+# Every field below shows the default value; omit fields you don't need.
+# CLI flags always take precedence over file values.
+
+
+# -- App launch settings (shared by all subcommands) ---------------------
+
+[app]
+
+# Full argv to start the app with DevMCP enabled. edev does not add cargo
+# flags or --dev-mcp for you -- the command must be complete. You can also
+# pass a command after `--` on any subcommand, which replaces this value.
+command = [
+  "cargo", "run",
+  "-p", "myapp",
+  "--features", "devtools",
+  "--bin", "myapp",
+  "--",
+  "--dev-mcp",
+]
+
+# Working directory for the app process. Relative paths resolve from the
+# directory containing this file.
+# cwd = "."
+
+# Extra environment variables injected into the app process.
+# env = { RUST_LOG = "info" }
+
+
+# -- MCP proxy settings (edev mcp) --------------------------------------
+
+[mcp]
+
+# Emit verbose launcher lifecycle logs to stderr.
+# verbose = false
+
+# Shut down the launcher after this many seconds of inactivity (no tool
+# calls). Set higher for long interactive sessions; lower for CI.
+# idle_shutdown_after_secs = 1200
+
+
+# -- Smoketest settings (edev smoke) ------------------------------------
+
+[smoke]
+
+# Directory containing .luau smoketest scripts. Relative paths resolve
+# from the directory containing this file.
+# suite_dir = "smoketest"
+
+# Stop the suite after the first failure.
+# fail_fast = false
+
+# Wall-clock deadline for the entire suite, in seconds.
+# suite_timeout_secs = 600
+
+# Per-script timeout, in seconds.
+# script_timeout_secs = 60
+
+# Typed arguments passed to every script. Values are auto-typed:
+# true/false -> bool, integers -> int, decimals -> float, else string.
+# CLI --arg flags are merged on top of these.
+# args = { theme = "dark", count = 5 }

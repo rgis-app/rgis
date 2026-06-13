@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "eguidev-demo": {
+      "command": "edev",
+      "args": ["mcp"]
+    }
+  }
+}

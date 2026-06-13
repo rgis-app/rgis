@@ -1,0 +1,59 @@
+[workspace]
+members = ["crates/eguidev", "crates/eguidev_runtime", "crates/edev"]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.2"
+edition = "2024"
+authors = ["Aldo Cortesi <aldo@corte.si>"]
+license = "MIT"
+repository = "https://github.com/cortesi/eguidev"
+homepage = "https://github.com/cortesi/eguidev"
+readme = "README.md"
+keywords = ["egui", "gui", "automation", "testing", "mcp"]
+
+[workspace.dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+eframe = { version = "0.33", default-features = false, features = ["glow"] }
+egui = "0.33"
+glob = "0.3"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+libc = "0.2"
+mlua = { version = "0.11.6", features = ["luau", "serialize", "vendored"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = "1.2"
+tempfile = "3.27"
+thiserror = "2.0"
+tmcp = "0.4"
+tokio = { version = "1.50", features = ["rt-multi-thread", "macros", "sync", "io-util", "process"] }
+eguidev = { version = "0.0.2", path = "crates/eguidev" }
+eguidev_runtime = { version = "0.0.2", path = "crates/eguidev_runtime" }
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+absolute_paths = "warn"
+branches_sharing_code = "warn"
+ignore_without_reason = "warn"
+let_underscore_must_use = "warn"
+many_single_char_names = "warn"
+missing_docs_in_private_items = "warn"
+multiple_inherent_impl = "warn"
+needless_pass_by_value = "warn"
+redundant_clone = "warn"
+redundant_pub_crate = "warn"
+self_named_module_files = "warn"
+tests_outside_test_module = "warn"
+use_self = "warn"
+wildcard_dependencies = "warn"
+cfg_not_test = "warn"
+comparison_chain = "warn"
+items_after_statements = "warn"
+needless_pass_by_ref_mut = "warn"
+
+cognitive_complexity = "warn"
+excessive_nesting = "warn"
+too_many_lines = "warn"

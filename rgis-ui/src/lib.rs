@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+#[cfg(all(feature = "eguidev", not(target_arch = "wasm32")))]
+pub mod eguidev_adapter;
+mod dev_ui;
 pub mod log_buffer;
 mod panels;
 pub mod save_file;

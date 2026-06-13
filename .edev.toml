@@ -1,0 +1,6 @@
+# eguidev launcher config for rgis (native, eguidev feature compiled in).
+# The app serves DevMCP on stdio whenever built with --features eguidev.
+[app]
+command = ["./target/debug/rgis"]
+cwd = "."
+env = { RUST_LOG = "warn", BEVY_ASSET_ROOT = "rgis" }
