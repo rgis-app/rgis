@@ -24,6 +24,9 @@ members = [
     "rgis-primitives",
     "bevy_egui_window",
 ]
+# Vendored fork of cortesi/eguidev (patched for egui 0.33), referenced by
+# rgis-ui as an optional path dep. It has its own [workspace], so exclude it.
+exclude = ["third_party/eguidev"]
 resolver = "2"
 
 [workspace.lints.clippy]

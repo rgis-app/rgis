@@ -43,6 +43,7 @@ pub fn render_map_scale(
 
             let (response, painter) =
                 ui.allocate_painter(egui::Vec2::new(bar_max_width, tick_height + 14.0), egui::Sense::hover());
+            crate::dev_ui::track("scale-bar", &response, "Map scale bar");
             let origin = response.rect.left_top();
 
             // Left tick

@@ -1,0 +1,5 @@
+
+[mcp_servers.eguidev_basic]
+command = "cargo"
+startup_timeout_sec = 120
+args = ["run", "--bin", "edev", "--", "mcp"]

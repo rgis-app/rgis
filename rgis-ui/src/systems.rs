@@ -895,6 +895,20 @@ enum RenderSystemSet {
 pub fn configure(app: &mut App) {
     app.init_resource::<SettingsToApply>();
 
+    #[cfg(all(feature = "eguidev", not(target_arch = "wasm32")))]
+    {
+        crate::eguidev_adapter::install(app);
+        app.add_systems(
+            EguiPrimaryContextPass,
+            crate::eguidev_adapter::begin_frame_system
+                .before(RenderSystemSet::RenderingMessageWindow),
+        );
+        app.add_systems(
+            EguiPrimaryContextPass,
+            crate::eguidev_adapter::end_frame_system.after(RenderSystemSet::Windows),
+        );
+    }
+
     app.add_systems(
         PostStartup,
         (bevy_egui::setup_primary_egui_context_system, setup_egui_fonts, sync_egui_theme).chain(),

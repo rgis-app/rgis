@@ -10,6 +10,10 @@ workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+# Enable eguidev automation instrumentation (native only).
+eguidev = ["rgis-ui/eguidev"]
+
 [dependencies]
 bevy = { workspace = true }
 bevy_jobs = { workspace = true }
@@ -36,3 +40,7 @@ js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 bevy = { workspace = true, features = ["webgl2"] }
 getrandom = { workspace = true }
+# zstd-sys (via async-tiff -> geo-raster) compiles amd64 assembly for any
+# non-Windows target; force no_asm so it builds for wasm32. Feature unification
+# propagates this to the transitive copy.
+zstd-sys = { version = "2.0.16", features = ["no_asm"] }

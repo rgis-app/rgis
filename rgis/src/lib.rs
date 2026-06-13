@@ -102,6 +102,12 @@ pub fn run() {
                 primary_window: Some(Window {
                     title: "rgis".to_string(),
                     canvas: Some("#rgis".into()),
+                    // Under eguidev automation, pin the window to Playwright's
+                    // coordinate space (1280x720 logical, scale factor 1.0) so
+                    // the two harnesses test the same layout.
+                    #[cfg(all(feature = "eguidev", not(target_arch = "wasm32")))]
+                    resolution: bevy::window::WindowResolution::new(1280, 720)
+                        .with_scale_factor_override(1.0),
                     ..Default::default()
                 }),
                 ..Default::default()

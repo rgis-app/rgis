@@ -1,0 +1,37 @@
+fixture("viewports.default")
+
+local all_viewports = viewports_list() :: any
+local secondary = nil
+for _, viewport in ipairs(all_viewports.viewports) do
+    if viewport.viewport_id ~= "root" then
+        secondary = viewport.viewport_id
+        break
+    end
+end
+assert(secondary ~= nil, "secondary viewport should be present")
+
+focus_window(secondary)
+
+-- Drag the region over row 0
+drag_to_widget(
+    { id = "viewports.drag", viewport_id = secondary },
+    { id = "viewports.row.0", viewport_id = secondary },
+    { viewport_id = secondary, settle = { enabled = false } }
+)
+wait_for_settle()
+
+local drag_w = widget_get({ id = "viewports.drag", viewport_id = secondary })
+local row0_w = widget_get({ id = "viewports.row.0", viewport_id = secondary })
+
+log({ drag = drag_w.rect, row0 = row0_w.rect })
+
+-- Check for overlaps
+local check = layout_check({
+    viewport_id = secondary,
+    checks = { "overlaps" }
+}) :: any
+
+assert(check.summary.issues_found > 0, "should find overlaps")
+return {
+    issues_found = check.summary.issues_found
+}
