@@ -32,14 +32,16 @@ use geo::{Coord, CoordFloat, LineString, MultiLineString, MultiPolygon, Polygon}
 fn normalize_lon<T: CoordFloat>(lon: T) -> T {
     let full = T::from(360.0).unwrap();
     let half = T::from(180.0).unwrap();
-    let mut result = lon;
-    while result > half {
-        result = result - full;
+    if lon >= -half && lon <= half {
+        return lon;
     }
-    while result < -half {
-        result = result + full;
+
+    let result = (lon + half).rem_euclid(full) - half;
+    if result == -half && lon > T::zero() {
+        half
+    } else {
+        result
     }
-    result
 }
 
 /// Normalize all coordinates in a list to have longitudes in [-180, 180].
