@@ -1,4 +1,10 @@
+use arrow::array::{
+    Array, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array, LargeStringArray,
+    StringArray,
+};
+use arrow::datatypes::DataType;
 use geo::MapCoords;
+use geozero::error::GeozeroError;
 use geozero::{ColumnValue, FeatureProcessor, GeozeroGeometry, PropertyProcessor};
 
 pub fn export_feature_collection(
@@ -41,9 +47,9 @@ fn write_features<W: FeatureProcessor + geozero::GeomProcessor + PropertyProcess
 
         writer.properties_begin()?;
         if let Some(ref record_batch) = fc.properties {
-            let props = geo_features::properties_for_row(record_batch, idx);
-            for (i, (key, value)) in props.iter().enumerate() {
-                writer.property(i, key, &ColumnValue::String(value))?;
+            for (i, field) in record_batch.schema().fields().iter().enumerate() {
+                let value = property_value(record_batch.column(i), idx)?;
+                writer.property(i, field.name(), &value)?;
             }
         }
         writer.properties_end()?;
@@ -53,4 +59,70 @@ fn write_features<W: FeatureProcessor + geozero::GeomProcessor + PropertyProcess
 
     writer.dataset_end()?;
     Ok(())
+}
+
+fn property_value(array: &dyn Array, row: usize) -> Result<ColumnValue<'_>, GeozeroError> {
+    if array.is_null(row) {
+        return Ok(ColumnValue::Json("null"));
+    }
+
+    let invalid_array = || {
+        GeozeroError::Geometry(format!("Invalid Arrow array for {:?}", array.data_type()))
+    };
+    Ok(match array.data_type() {
+        DataType::Utf8 => ColumnValue::String(
+            array
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::LargeUtf8 => ColumnValue::String(
+            array
+                .as_any()
+                .downcast_ref::<LargeStringArray>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::Float64 => ColumnValue::Double(
+            array
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::Float32 => ColumnValue::Float(
+            array
+                .as_any()
+                .downcast_ref::<Float32Array>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::Int64 => ColumnValue::Long(
+            array
+                .as_any()
+                .downcast_ref::<Int64Array>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::Int32 => ColumnValue::Int(
+            array
+                .as_any()
+                .downcast_ref::<Int32Array>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        DataType::Boolean => ColumnValue::Bool(
+            array
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .ok_or_else(invalid_array)?
+                .value(row),
+        ),
+        other => {
+            return Err(GeozeroError::Geometry(format!(
+                "Cannot export Arrow property type {other:?}"
+            )));
+        }
+    })
 }
