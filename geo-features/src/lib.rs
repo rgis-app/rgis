@@ -116,11 +116,11 @@ impl<Scalar: geo::CoordNum + Default> FeatureCollection<Scalar> {
 impl<Scalar: geo::CoordNum> geo::CoordsIter for FeatureCollection<Scalar> {
     type Scalar = Scalar;
     type Iter<'a>
-        = iter::Empty<geo::Coord<Self::Scalar>>
+        = Box<dyn Iterator<Item = geo::Coord<Self::Scalar>> + 'a>
     where
         Scalar: 'a;
     type ExteriorIter<'a>
-        = iter::Empty<geo::Coord<Self::Scalar>>
+        = Box<dyn Iterator<Item = geo::Coord<Self::Scalar>> + 'a>
     where
         Scalar: 'a;
 
@@ -129,11 +129,15 @@ impl<Scalar: geo::CoordNum> geo::CoordsIter for FeatureCollection<Scalar> {
     }
 
     fn coords_iter(&self) -> Self::Iter<'_> {
-        todo!()
+        Box::new(self.features.iter().flat_map(|feature| feature.coords_iter()))
     }
 
     fn exterior_coords_iter(&self) -> Self::ExteriorIter<'_> {
-        todo!()
+        Box::new(
+            self.features
+                .iter()
+                .flat_map(|feature| feature.exterior_coords_iter()),
+        )
     }
 }
 
