@@ -15,8 +15,8 @@ pub struct AppState {
     pub version: u32,
     /// Frames rendered so far.
     pub frame: u32,
-    /// True when nothing is in flight: no background jobs, camera flights, or
-    /// fades, for a few consecutive frames.
+    /// True when nothing is in flight: no background jobs, camera flights,
+    /// fades, or pending script steps, for a few consecutive frames.
     pub idle: bool,
     pub jobs_in_flight: usize,
     /// Names of the running background jobs, e.g. "Projecting layer".
@@ -34,8 +34,11 @@ pub struct AppState {
     /// Text shown in the message window, oldest first (typically errors such
     /// as "Error loading file: ...").
     pub messages: Vec<String>,
+    /// Errors from script or dispatch commands, oldest first.
+    pub command_errors: Vec<String>,
     /// Recent WARN and ERROR log entries, oldest first.
     pub logs: Vec<LogEntryState>,
+    pub script: ScriptState,
     pub animations_enabled: bool,
 }
 
@@ -176,6 +179,17 @@ pub struct LogEntryState {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ScriptState {
+    /// Steps queued but not finished (including the one in progress).
+    pub pending_steps: usize,
+    /// The step currently waiting (e.g. "wait_idle"), if any.
+    pub current_step: Option<String>,
+    pub completed_steps: usize,
+    /// Set when a step failed; the rest of that script was skipped.
+    pub last_error: Option<String>,
+}
+
 /// Build an [`AppState`] from the world.
 ///
 /// Works with any subset of the rgis plugins: missing pieces (no renderer, no
@@ -196,14 +210,25 @@ pub fn app_state(world: &mut World) -> AppState {
         .map(|windows| windows.titles().map(String::from).collect())
         .unwrap_or_default();
 
-    let messages = world
+    let (messages, command_errors) = world
         .get_resource::<crate::AutomationLog>()
-        .map(|log| log.messages().map(String::from).collect())
+        .map(|log| {
+            (
+                log.messages.iter().cloned().collect(),
+                log.command_errors.iter().cloned().collect(),
+            )
+        })
+        .unwrap_or_default();
+
+    let script = world
+        .get_resource::<crate::runner::ScriptRunner>()
+        .map(crate::runner::ScriptRunner::state)
         .unwrap_or_default();
 
     let idle = world
         .get_resource::<crate::IdleTracker>()
-        .is_some_and(crate::IdleTracker::is_idle);
+        .is_some_and(crate::IdleTracker::is_idle)
+        && script.pending_steps == 0;
 
     AppState {
         version: STATE_VERSION,
@@ -221,7 +246,9 @@ pub fn app_state(world: &mut World) -> AppState {
         selected_feature,
         open_windows,
         messages,
+        command_errors,
         logs: log_entries(world),
+        script,
         animations_enabled: rgis_renderer::ANIMATIONS_ENABLED
             .load(std::sync::atomic::Ordering::Relaxed),
     }

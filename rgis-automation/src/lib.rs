@@ -1,8 +1,11 @@
-//! Inspect what rgis is doing without looking at pixels.
+//! Drive rgis programmatically and inspect what it's doing.
 //!
+//! * [`command`]: the command vocabulary (`{"cmd": "load_file", ...}`) used by
+//!   `--script`, the wasm `dispatch` export, and tests.
+//! * [`runner`]: runs commands against the world, one step per frame, with
+//!   `wait_idle` / `frames` steps for anything asynchronous.
 //! * [`state`]: [`AppState`], a JSON snapshot of layers, CRS, camera, windows,
 //!   selection, errors, and in-flight work.
-//! * [`idle`]: whether the app has settled (no jobs, flights, or fades).
 //!
 //! See `docs/automation.md` for the user-facing guide.
 
@@ -12,19 +15,24 @@ use std::sync::Mutex;
 
 use bevy::prelude::*;
 
+pub mod command;
 pub mod idle;
+pub mod runner;
 pub mod state;
 
+pub use command::{parse_script, Command};
 pub use idle::IdleTracker;
+pub use runner::{enqueue, ScriptRunner};
 pub use state::{app_state, AppState};
 
-/// How many messages [`AutomationLog`] keeps.
+/// How many entries of each kind [`AutomationLog`] keeps.
 const MAX_LOG_ENTRIES: usize = 50;
 
-/// User-facing messages, for [`AppState`].
+/// User-facing messages and command errors, for [`AppState`].
 #[derive(Resource, Default, Debug)]
 pub struct AutomationLog {
     messages: VecDeque<String>,
+    command_errors: VecDeque<String>,
 }
 
 impl AutomationLog {
@@ -32,8 +40,16 @@ impl AutomationLog {
         self.messages.iter().map(String::as_str)
     }
 
+    pub fn command_errors(&self) -> impl Iterator<Item = &str> {
+        self.command_errors.iter().map(String::as_str)
+    }
+
     fn push_message(&mut self, message: String) {
         push_capped(&mut self.messages, message);
+    }
+
+    fn push_command_error(&mut self, error: String) {
+        push_capped(&mut self.command_errors, error);
     }
 }
 
@@ -77,23 +93,42 @@ pub fn cache_latest_state(world: &mut World) {
     }
 }
 
-/// The state cached by [`cache_latest_state`] as JSON.
+/// The state cached by [`cache_latest_state`] as JSON, accounting for
+/// commands queued with [`enqueue`] since then.
 ///
 /// Returns `None` until a frame has run since the first call: that call is
 /// what turns on the per-frame snapshot, so callers should poll.
 pub fn latest_state_json() -> Option<Result<String, String>> {
     STATE_REQUESTED.store(true, Ordering::Relaxed);
-    let state = LATEST_STATE.lock().ok()?.clone()?;
+    let mut state = LATEST_STATE.lock().ok()?.clone()?;
+    let queued = runner::inbox_len();
+    if queued > 0 {
+        state.script.pending_steps += queued;
+        state.idle = false;
+    }
     Some(serde_json::to_string(&state).map_err(|e| e.to_string()))
 }
 
-/// Tracks idleness and collects messages for [`AppState`].
+/// Parse `json` (one step or an array of steps) and queue it to run.
+/// Returns how many steps were queued.
+pub fn dispatch_json(json: &str) -> Result<usize, String> {
+    // Callers will want to see the results.
+    STATE_REQUESTED.store(true, Ordering::Relaxed);
+    let commands = parse_script(json)?;
+    let count = commands.len();
+    enqueue(commands);
+    Ok(count)
+}
+
+/// Runs [`ScriptRunner`] steps, tracks idleness, and collects messages.
 pub struct Plugin;
 
 impl bevy::app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AutomationLog>()
             .init_resource::<IdleTracker>()
+            .init_resource::<ScriptRunner>()
+            .add_systems(PreUpdate, runner::run_script)
             .add_systems(
                 Update,
                 capture_messages.after(rgis_primitives::RgisSet::Camera),

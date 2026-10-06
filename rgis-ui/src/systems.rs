@@ -171,6 +171,11 @@ fn render_manage_layer_window(
         *state = Some(event.0);
     }
 
+    if crate::widget_registry::take_close_request("Manage Layer") {
+        *state = None;
+        return Ok(());
+    }
+
     let Some(layer_id) = *state else {
         return Ok(());
     };
@@ -317,6 +322,7 @@ fn render_add_layer_window(
                     rgis_events::LoadFileMessage::FromNetwork {
                         name,
                         url,
+                        file_format: geo_file_loader::FileFormat::GeoJson,
                         source_crs,
                     },
                 );
@@ -401,6 +407,12 @@ fn render_feature_properties_window(
         }
     }
 
+    if crate::widget_registry::take_close_request("Layer Feature Properties") {
+        *state = None;
+        features_deselected_writer.write(rgis_events::FeaturesDeselectedMessage);
+        return Ok(());
+    }
+
     let Some(ref data) = *state else {
         return Ok(());
     };
@@ -467,6 +479,11 @@ fn render_attribute_table_window(
     };
 
     let title = format!("Attribute Table: {}", name.0);
+    if crate::widget_registry::take_close_request(&title) {
+        *state = None;
+        return Ok(());
+    }
+
     let bevy_egui_ctx_mut = bevy_egui_ctx.ctx_mut()?;
     let default_pos = egui::pos2(side_panel_width.0 + 4.0, top_panel_height.0 + 40.0);
     let mut is_open = true;
@@ -510,6 +527,10 @@ fn render_message_window(
         *state = Some(event.0);
     }
 
+    if crate::widget_registry::take_close_request("Message Window") {
+        *state = None;
+    }
+
     crate::windows::message::Message {
         state: &mut state,
         egui_ctx: bevy_egui_ctx_mut,
@@ -540,6 +561,10 @@ fn render_operation_window(
             source_crs: None,
             layer_name: event.layer_name,
         });
+    }
+
+    if crate::widget_registry::take_close_request("Operation") {
+        *state = None;
     }
 
     if state.is_some() {
@@ -969,7 +994,6 @@ pub fn configure(app: &mut App) {
             handle_save_file_job,
             handle_download_layer,
             perform_operation,
-            handle_fill_color_requests,
             // Apply deferred settings mutations, then sync theme only when
             // RgisSettings actually changed.
             (apply_deferred_settings, sync_egui_theme).chain(),
@@ -996,24 +1020,6 @@ fn clear_open_windows(mut open_windows: ResMut<crate::OpenWindows>) {
 
 fn record_logs_window(mut open_windows: ResMut<crate::OpenWindows>) {
     open_windows.record("Logs");
-}
-
-fn handle_fill_color_requests(
-    layer_order: Res<rgis_layers::LayerOrder>,
-    layer_id_query: Query<&rgis_primitives::LayerId>,
-    mut color_events: ResMut<Messages<rgis_ui_messages::UpdateLayerColorMessage>>,
-) {
-    for rgba in crate::widget_registry::take_fill_color_requests() {
-        // Apply to the first layer
-        if let Some(entity) = layer_order.iter_top_to_bottom().next() {
-            if let Ok(layer_id) = layer_id_query.get(entity) {
-                color_events.write(rgis_ui_messages::UpdateLayerColorMessage::Fill(
-                    *layer_id,
-                    Color::linear_rgba(rgba[0], rgba[1], rgba[2], rgba[3]),
-                ));
-            }
-        }
-    }
 }
 
 fn perform_operation(

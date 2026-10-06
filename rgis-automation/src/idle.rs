@@ -18,6 +18,11 @@ impl IdleTracker {
     pub fn is_idle(&self) -> bool {
         self.quiet_frames >= IDLE_FRAMES
     }
+
+    /// Start counting quiet frames from zero, e.g. after something changed.
+    pub(crate) fn reset(&mut self) {
+        self.quiet_frames = 0;
+    }
 }
 
 /// Describes what's keeping the app busy, or `None` if nothing is.

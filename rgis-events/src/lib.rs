@@ -190,6 +190,7 @@ pub enum LoadFileMessage {
     FromNetwork {
         name: String,
         url: String,
+        file_format: geo_file_loader::FileFormat,
         source_crs: rgis_primitives::Crs,
     },
     FromBytes {

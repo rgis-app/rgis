@@ -22,6 +22,24 @@ pub enum RgisSet {
     Camera,
 }
 
+impl RgisSet {
+    /// Chain the sets in `Update` in the order documented above.
+    pub fn configure(app: &mut bevy::app::App) {
+        use bevy::ecs::schedule::IntoScheduleConfigs;
+        app.configure_sets(
+            bevy::app::Update,
+            (
+                RgisSet::FileLoading,
+                RgisSet::LayerProcessing,
+                RgisSet::Transform,
+                RgisSet::Rendering,
+                RgisSet::Camera,
+            )
+                .chain(),
+        );
+    }
+}
+
 #[derive(
     Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash, bevy::ecs::component::Component,
 )]
