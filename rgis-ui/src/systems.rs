@@ -165,9 +165,15 @@ fn render_manage_layer_window(
     mut name_edit_layer_id: Local<Option<rgis_primitives::LayerId>>,
     side_panel_width: Res<rgis_units::SidePanelWidth>,
     top_panel_height: Res<rgis_units::TopPanelHeight>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if let Some(event) = show_manage_layer_window_event_reader.read().last() {
         *state = Some(event.0);
+    }
+
+    if crate::widget_registry::take_close_request("Manage Layer") {
+        *state = None;
+        return Ok(());
     }
 
     let Some(layer_id) = *state else {
@@ -212,7 +218,9 @@ fn render_manage_layer_window(
             .render(ui);
         });
 
-    if !is_open {
+    if is_open {
+        open_windows.record("Manage Layer");
+    } else {
         *state = None;
     }
     Ok(())
@@ -228,6 +236,7 @@ fn render_add_layer_window(
     geodesy_ctx: Res<rgis_crs::GeodesyContext>,
     side_panel_width: Res<rgis_units::SidePanelWidth>,
     top_panel_height: Res<rgis_units::TopPanelHeight>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if crate::widget_registry::take_close_request("Add Layer") {
         state.reset();
@@ -261,6 +270,9 @@ fn render_add_layer_window(
                 }
                 .render(ui);
             });
+        if *is_visible {
+            open_windows.record("Add Layer");
+        }
     } else {
         state.reset();
     }
@@ -310,6 +322,7 @@ fn render_add_layer_window(
                     rgis_events::LoadFileMessage::FromNetwork {
                         name,
                         url,
+                        file_format: geo_file_loader::FileFormat::GeoJson,
                         source_crs,
                     },
                 );
@@ -337,6 +350,7 @@ fn render_change_crs_window(
     side_panel_width: Res<rgis_units::SidePanelWidth>,
     top_panel_height: Res<rgis_units::TopPanelHeight>,
     mut was_visible: Local<bool>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if crate::widget_registry::take_close_request("Change CRS") {
         is_visible.0 = false;
@@ -367,6 +381,9 @@ fn render_change_crs_window(
             }
             .render(ui);
         });
+    if is_visible.0 {
+        open_windows.record("Change CRS");
+    }
     Ok(())
 }
 
@@ -379,6 +396,7 @@ fn render_feature_properties_window(
     mut features_deselected_writer: MessageWriter<rgis_events::FeaturesDeselectedMessage>,
     side_panel_width: Res<rgis_units::SidePanelWidth>,
     top_panel_height: Res<rgis_units::TopPanelHeight>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if let Some(event) = render_message_events.drain().last() {
         if let Some(properties) = event.properties {
@@ -387,6 +405,12 @@ fn render_feature_properties_window(
                 properties,
             });
         }
+    }
+
+    if crate::widget_registry::take_close_request("Layer Feature Properties") {
+        *state = None;
+        features_deselected_writer.write(rgis_events::FeaturesDeselectedMessage);
+        return Ok(());
     }
 
     let Some(ref data) = *state else {
@@ -416,7 +440,9 @@ fn render_feature_properties_window(
             .render(ui);
         });
 
-    if !is_open {
+    if is_open {
+        open_windows.record("Layer Feature Properties");
+    } else {
         *state = None;
         features_deselected_writer.write(rgis_events::FeaturesDeselectedMessage);
     }
@@ -433,6 +459,7 @@ fn render_attribute_table_window(
     top_panel_height: Res<rgis_units::TopPanelHeight>,
     mut center_camera_on_feature_writer: MessageWriter<rgis_events::CenterCameraOnFeatureMessage>,
     mut feature_selected_writer: MessageWriter<rgis_events::FeatureSelectedMessage>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if let Some(event) = show_events.read().last() {
         *state = Some(event.0);
@@ -451,11 +478,17 @@ fn render_attribute_table_window(
         return Ok(());
     };
 
+    let title = format!("Attribute Table: {}", name.0);
+    if crate::widget_registry::take_close_request(&title) {
+        *state = None;
+        return Ok(());
+    }
+
     let bevy_egui_ctx_mut = bevy_egui_ctx.ctx_mut()?;
     let default_pos = egui::pos2(side_panel_width.0 + 4.0, top_panel_height.0 + 40.0);
     let mut is_open = true;
     let mut action = None;
-    egui::Window::new(format!("Attribute Table: {}", name.0))
+    egui::Window::new(&title)
         .id(egui::Id::new("Attribute Table Window"))
         .default_pos(default_pos)
         .default_size([600.0, 400.0])
@@ -475,7 +508,9 @@ fn render_attribute_table_window(
         None => {}
     }
 
-    if !is_open {
+    if is_open {
+        open_windows.record(title);
+    } else {
         *state = None;
     }
     Ok(())
@@ -485,10 +520,15 @@ fn render_message_window(
     mut state: Local<crate::MessageWindowState>,
     mut bevy_egui_ctx: EguiContexts,
     mut render_message_events: ResMut<Messages<rgis_ui_messages::RenderTextMessage>>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     let bevy_egui_ctx_mut = bevy_egui_ctx.ctx_mut()?;
     if let Some(event) = render_message_events.drain().last() {
         *state = Some(event.0);
+    }
+
+    if crate::widget_registry::take_close_request("Message Window") {
+        *state = None;
     }
 
     crate::windows::message::Message {
@@ -496,9 +536,13 @@ fn render_message_window(
         egui_ctx: bevy_egui_ctx_mut,
     }
     .render();
+    if state.is_some() {
+        open_windows.record("Message Window");
+    }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_operation_window(
     mut state: Local<crate::OperationWindowState>,
     mut events: ResMut<Messages<rgis_ui_messages::OpenOperationWindowMessage>>,
@@ -507,6 +551,7 @@ fn render_operation_window(
     render_message_event_writer: MessageWriter<rgis_ui_messages::RenderTextMessage>,
     side_panel_width: Res<rgis_units::SidePanelWidth>,
     top_panel_height: Res<rgis_units::TopPanelHeight>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     let bevy_egui_ctx_mut = bevy_egui_ctx.ctx_mut()?;
     if let Some(event) = events.drain().last() {
@@ -516,6 +561,10 @@ fn render_operation_window(
             source_crs: None,
             layer_name: event.layer_name,
         });
+    }
+
+    if crate::widget_registry::take_close_request("Operation") {
+        *state = None;
     }
 
     if state.is_some() {
@@ -532,7 +581,9 @@ fn render_operation_window(
                 }
                 .render(ui);
             });
-        if !is_open {
+        if is_open {
+            open_windows.record("Operation");
+        } else {
             *state = None;
         }
     }
@@ -799,6 +850,7 @@ fn render_measure_tool(
     camera_q: Query<&Transform, With<Camera>>,
     windows: Query<&bevy::window::Window, With<PrimaryWindow>>,
     mut cached_distances: Local<Option<AllDistances>>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if *current_tool.get() != rgis_settings::Tool::Measure {
         return Ok(());
@@ -842,12 +894,12 @@ fn render_measure_tool(
 
     painter.line_segment(
         [start_screen_pos, end_screen_pos],
-        egui::Stroke::new(2.0, egui::Color32::RED),
+        egui::Stroke::new(2.0_f32, egui::Color32::RED),
     );
 
     // Draw drag handles at endpoints: white fill with red border
-    painter.circle(start_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0, egui::Color32::RED));
-    painter.circle(end_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0, egui::Color32::RED));
+    painter.circle(start_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0_f32, egui::Color32::RED));
+    painter.circle(end_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0_f32, egui::Color32::RED));
 
     // Distance panel with live distances for all methods
     let entries: &[(&str, f64, &str)] = &[
@@ -871,6 +923,7 @@ fn render_measure_tool(
                 crate::widget_registry::register(name, label.rect);
             }
         });
+    open_windows.record("Distances");
 
     Ok(())
 }
@@ -886,6 +939,7 @@ fn project_to_screen(
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 enum RenderSystemSet {
+    BeginPass,
     RenderingMessageWindow,
     RenderingTopBottom,
     Side,
@@ -903,6 +957,7 @@ pub fn configure(app: &mut App) {
     app.configure_sets(
         EguiPrimaryContextPass,
         (
+            RenderSystemSet::BeginPass,
             RenderSystemSet::RenderingMessageWindow,
             RenderSystemSet::RenderingTopBottom,
             RenderSystemSet::Side,
@@ -914,6 +969,7 @@ pub fn configure(app: &mut App) {
     app.add_systems(
         EguiPrimaryContextPass,
         (
+            clear_open_windows.in_set(RenderSystemSet::BeginPass),
             crate::widgets::scale_bar::render_map_scale.in_set(RenderSystemSet::Side),
             crate::widgets::zoom_buttons::render_zoom_buttons.in_set(RenderSystemSet::Side),
             render_message_window.in_set(RenderSystemSet::RenderingMessageWindow),
@@ -938,7 +994,6 @@ pub fn configure(app: &mut App) {
             handle_save_file_job,
             handle_download_layer,
             perform_operation,
-            handle_fill_color_requests,
             // Apply deferred settings mutations, then sync theme only when
             // RgisSettings actually changed.
             (apply_deferred_settings, sync_egui_theme).chain(),
@@ -950,30 +1005,21 @@ pub fn configure(app: &mut App) {
     app.add_systems(
         EguiPrimaryContextPass,
         (
-            bevy_egui_window::render_window_system::<crate::windows::logs::Logs>
+            (bevy_egui_window::render_window_system::<crate::windows::logs::Logs>, record_logs_window)
                 .run_if(in_state(bevy_egui_window::WindowVisibility::<crate::windows::logs::Logs>::Open)),
             crate::windows::welcome::render_welcome_window_system
                 .run_if(in_state(bevy_egui_window::WindowVisibility::<crate::windows::welcome::Welcome>::Open)),
-        ),
+        )
+            .in_set(RenderSystemSet::Windows),
     );
 }
 
-fn handle_fill_color_requests(
-    layer_order: Res<rgis_layers::LayerOrder>,
-    layer_id_query: Query<&rgis_primitives::LayerId>,
-    mut color_events: ResMut<Messages<rgis_ui_messages::UpdateLayerColorMessage>>,
-) {
-    for rgba in crate::widget_registry::take_fill_color_requests() {
-        // Apply to the first layer
-        if let Some(entity) = layer_order.iter_top_to_bottom().next() {
-            if let Ok(layer_id) = layer_id_query.get(entity) {
-                color_events.write(rgis_ui_messages::UpdateLayerColorMessage::Fill(
-                    *layer_id,
-                    Color::linear_rgba(rgba[0], rgba[1], rgba[2], rgba[3]),
-                ));
-            }
-        }
-    }
+fn clear_open_windows(mut open_windows: ResMut<crate::OpenWindows>) {
+    open_windows.clear();
+}
+
+fn record_logs_window(mut open_windows: ResMut<crate::OpenWindows>) {
+    open_windows.record("Logs");
 }
 
 fn perform_operation(
@@ -1080,6 +1126,8 @@ mod tests {
             x: 10.0.into(),
             y: 10.0.into(),
         }));
+
+        app.init_resource::<crate::OpenWindows>();
 
         // Spawn an entity with Transform and Camera, which is what the system queries for.
         // We avoid using Camera2d bundle/component to avoid pulling in too many render dependencies.

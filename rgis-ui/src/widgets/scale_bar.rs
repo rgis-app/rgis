@@ -37,7 +37,7 @@ pub fn render_map_scale(
             } else {
                 egui::Color32::BLACK
             };
-            let stroke = egui::Stroke::new(2.0, bar_color);
+            let stroke = egui::Stroke::new(2.0_f32, bar_color);
             let tick_height = 8.0;
             let bar_y_offset = tick_height / 2.0;
 

@@ -1,0 +1,13 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Dateline box" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[170, -10], [-170, -10], [-170, 10], [170, 10], [170, -10]]]
+      }
+    }
+  ]
+}

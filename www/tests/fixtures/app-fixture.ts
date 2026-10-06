@@ -1,5 +1,69 @@
 import { test as base, expect, Page } from "@playwright/test";
 
+/** A subset of `rgis_automation::AppState`; see docs/automation.md. */
+export interface Bbox {
+  min_x: number;
+  min_y: number;
+  max_x: number;
+  max_y: number;
+}
+
+export interface CrsState {
+  epsg: number | null;
+  proj: string | null;
+  name: string | null;
+  geographic: boolean;
+}
+
+export interface LayerState {
+  index: number;
+  id: number;
+  name: string;
+  kind: "vector" | "raster";
+  visible: boolean;
+  crs: CrsState;
+  feature_count: number | null;
+  geometry_types: string[];
+  bbox: Bbox | null;
+  projected_bbox: Bbox | null;
+  projected: boolean;
+  rendered: boolean | null;
+  fill_color: string | null;
+  stroke_color: string;
+  point_size: number;
+  raster: { width: number; height: number; format: string } | null;
+}
+
+export interface AppState {
+  idle: boolean;
+  jobs_in_flight: number;
+  target_crs: CrsState | null;
+  camera: {
+    center: { x: number; y: number };
+    scale: number;
+    viewport: { width: number; height: number };
+    visible_bbox: Bbox | null;
+    animating: boolean;
+  } | null;
+  layers: LayerState[];
+  selected_feature: {
+    layer_id: number;
+    feature_index: number | null;
+    properties: [string, string][];
+  } | null;
+  open_windows: string[];
+  messages: string[];
+  command_errors: string[];
+  script: {
+    pending_steps: number;
+    current_step: string | null;
+    last_error: string | null;
+  };
+}
+
+/** A script step, e.g. `{ cmd: "toggle_visibility", layer: 0 }`. */
+export type Step = { cmd: string } & Record<string, unknown>;
+
 export class AppPage {
   constructor(public readonly page: Page) {}
 
@@ -143,6 +207,68 @@ export class AppPage {
       { x: cx, y: cy },
     );
     await this.waitForNextFrame();
+  }
+
+  /**
+   * The app state as of the last rendered frame. The app only tracks its
+   * state once it's been asked for, so the first call waits a frame.
+   */
+  async getAppState(): Promise<AppState> {
+    const handle = await this.page.waitForFunction(
+      () => {
+        const json = (window as any).get_app_state?.();
+        return json && json !== "null" ? json : false;
+      },
+      null,
+      { timeout: 10000 },
+    );
+    return JSON.parse(await handle.jsonValue());
+  }
+
+  /**
+   * Wait until no jobs, camera flights, fades, or dispatched steps are in
+   * flight.
+   */
+  async waitForIdle(timeout = 30000) {
+    await this.page.waitForFunction(
+      () => {
+        const json = (window as any).get_app_state?.();
+        return !!json && JSON.parse(json)?.idle === true;
+      },
+      null,
+      { timeout },
+    );
+  }
+
+  /**
+   * Run steps through the same command layer as `rgis --script`, wait for
+   * the app to settle, and return the resulting state. Throws if a step
+   * fails.
+   */
+  async dispatch(steps: Step | Step[], timeout = 30000): Promise<AppState> {
+    const errorsBefore = (await this.getAppState()).command_errors.length;
+    await this.page.evaluate(
+      (json) => (window as any).dispatch(json),
+      JSON.stringify(steps),
+    );
+    await this.waitForIdle(timeout);
+    const state = await this.getAppState();
+    const errors = state.command_errors.slice(errorsBefore);
+    if (errors.length > 0) {
+      throw new Error(`dispatch failed: ${errors.join("; ")}`);
+    }
+    return state;
+  }
+
+  /** The layer with this name; fails the test if there isn't exactly one. */
+  async getLayer(name: string): Promise<LayerState> {
+    const { layers } = await this.getAppState();
+    const matches = layers.filter((layer) => layer.name === name);
+    expect(
+      matches,
+      `layers named "${name}" in ${JSON.stringify(layers.map((l) => l.name))}`,
+    ).toHaveLength(1);
+    return matches[0];
   }
 
   async listWidgets(): Promise<string> {

@@ -1,4 +1,4 @@
-import init, { run, get_widget_rect, get_all_widget_rects, get_rendered_layer_count, get_active_fade_count, set_animations_enabled, close_window, set_first_layer_fill_color } from "rgis-pkg/rgis.js";
+import init, { run, get_widget_rect, get_all_widget_rects, get_rendered_layer_count, get_active_fade_count, set_animations_enabled, close_window, set_first_layer_fill_color, get_app_state, dispatch } from "rgis-pkg/rgis.js";
 
 async function fetchWasmWithProgress() {
     const bar = document.getElementById("loading-bar");
@@ -51,6 +51,9 @@ async function main() {
     window.set_animations_enabled = set_animations_enabled;
     window.close_window = close_window;
     window.set_first_layer_fill_color = set_first_layer_fill_color;
+    // App state as JSON and semantic commands; see docs/automation.md
+    window.get_app_state = get_app_state;
+    window.dispatch = dispatch;
     // Signal that WASM has loaded and initialized
     document.title = "rgis - ready";
     // Call the run function

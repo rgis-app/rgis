@@ -40,6 +40,7 @@ pub fn render_welcome_window_system(
     mut bevy_egui_ctx: bevy_egui::EguiContexts,
     current_state: Res<State<bevy_egui_window::WindowVisibility<Welcome<'static>>>>,
     mut next_state: ResMut<NextState<bevy_egui_window::WindowVisibility<Welcome<'static>>>>,
+    mut open_windows: ResMut<crate::OpenWindows>,
 ) -> Result {
     if crate::widget_registry::take_close_request("Welcome") {
         next_state.set(bevy_egui_window::WindowVisibility::Closed);
@@ -71,7 +72,9 @@ pub fn render_welcome_window_system(
         }
     }
 
-    if !is_open {
+    if is_open {
+        open_windows.record("Welcome");
+    } else {
         next_state.set(bevy_egui_window::WindowVisibility::Closed);
     }
 

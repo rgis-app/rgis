@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use rgis_primitives::Crs;
 
 #[derive(Clone)]
-struct SourceCrs(Crs);
+struct FetchUserData {
+    file_format: geo_file_loader::FileFormat,
+    source_crs: Crs,
+}
 
 fn handle_network_fetch_finished_jobs(
     mut load_event_reader: ResMut<Messages<rgis_events::LoadFileMessage>>,
@@ -10,15 +13,15 @@ fn handle_network_fetch_finished_jobs(
     mut render_message_event_writer: MessageWriter<rgis_ui_messages::RenderTextMessage>,
 ) {
     while let Some(outcome) =
-        finished_jobs.take_next::<bevy_jobs_fetch::NetworkFetchJob<SourceCrs>>()
+        finished_jobs.take_next::<bevy_jobs_fetch::NetworkFetchJob<FetchUserData>>()
     {
         match outcome {
             Ok(fetched) => {
                 load_event_reader.write(rgis_events::LoadFileMessage::FromBytes {
-                    file_format: geo_file_loader::FileFormat::GeoJson,
+                    file_format: fetched.user_data.file_format,
                     bytes: fetched.bytes,
                     file_name: fetched.name,
-                    source_crs: fetched.user_data.0,
+                    source_crs: fetched.user_data.source_crs,
                 });
             }
             Err(e) => {
@@ -40,10 +43,14 @@ fn handle_load_file_events(
             rgis_events::LoadFileMessage::FromNetwork {
                 url,
                 name,
+                file_format,
                 source_crs,
             } => job_spawner.spawn(bevy_jobs_fetch::NetworkFetchJob {
                 url,
-                user_data: SourceCrs(source_crs),
+                user_data: FetchUserData {
+                    file_format,
+                    source_crs,
+                },
                 name,
             }),
             rgis_events::LoadFileMessage::FromBytes {

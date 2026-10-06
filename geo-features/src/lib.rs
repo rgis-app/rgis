@@ -378,6 +378,11 @@ impl FeatureId {
     pub fn new() -> Self {
         FeatureId(new_id())
     }
+
+    /// Returns the raw numeric value of this `FeatureId`.
+    pub fn get(self) -> u64 {
+        self.0.get()
+    }
 }
 
 fn new_id() -> num::NonZeroU64 {

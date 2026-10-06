@@ -5588,8 +5588,10 @@ dependencies = [
  "bevy",
  "bevy_jobs",
  "geo",
+ "geo-file-loader",
  "getrandom 0.2.17",
  "js-sys",
+ "rgis-automation",
  "rgis-camera",
  "rgis-cli",
  "rgis-crs",
@@ -5605,6 +5607,33 @@ dependencies = [
  "rgis-ui",
  "rgis-ui-messages",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "rgis-automation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_jobs",
+ "bytes",
+ "crs-definitions",
+ "geo",
+ "geo-features",
+ "geo-file-loader",
+ "geo-raster",
+ "rgis-camera",
+ "rgis-crs",
+ "rgis-events",
+ "rgis-file-loader",
+ "rgis-layers",
+ "rgis-primitives",
+ "rgis-renderer",
+ "rgis-transform",
+ "rgis-ui",
+ "rgis-ui-messages",
+ "rgis-units",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
