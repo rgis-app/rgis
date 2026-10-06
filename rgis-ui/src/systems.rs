@@ -894,12 +894,12 @@ fn render_measure_tool(
 
     painter.line_segment(
         [start_screen_pos, end_screen_pos],
-        egui::Stroke::new(2.0, egui::Color32::RED),
+        egui::Stroke::new(2.0_f32, egui::Color32::RED),
     );
 
     // Draw drag handles at endpoints: white fill with red border
-    painter.circle(start_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0, egui::Color32::RED));
-    painter.circle(end_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0, egui::Color32::RED));
+    painter.circle(start_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0_f32, egui::Color32::RED));
+    painter.circle(end_screen_pos, 8.0, egui::Color32::WHITE, egui::Stroke::new(2.0_f32, egui::Color32::RED));
 
     // Distance panel with live distances for all methods
     let entries: &[(&str, f64, &str)] = &[
