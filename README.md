@@ -27,22 +27,3 @@ Print help information:
 ```sh
 rgis --help
 ```
-
-## Driving rgis programmatically
-
-rgis can run a script of commands, then save a screenshot and a JSON dump of
-its state (layers, CRS, extents, camera, open windows, errors) and exit:
-
-```sh
-cargo run -p rgis -- \
-  --script '[{"cmd": "load_file", "path": "countries.geojson"},
-             {"cmd": "change_crs", "epsg": 3857},
-             {"cmd": "wait_idle"}]' \
-  --dump-state out.json \
-  --screenshot out.png
-```
-
-The web build exposes the same commands and state to JavaScript as
-`dispatch(json)` and `get_app_state()`. See
-[docs/automation.md](docs/automation.md) for the command list, the state
-format, the Playwright helpers, and a macOS caveat about covered windows.
