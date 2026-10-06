@@ -1,4 +1,4 @@
-import { test } from "./fixtures/app-fixture";
+import { test, expect } from "./fixtures/app-fixture";
 
 const geotiffFiles = [
   "rasterio_generated/fixtures/antimeridian.tif",
@@ -41,6 +41,10 @@ function snapshotName(filePath: string): string {
   return filePath.replace(/\//g, "-").replace(/\.tif$/, "") + ".png";
 }
 
+function fileName(filePath: string): string {
+  return filePath.split("/").pop()!;
+}
+
 test("load eox_cloudless with Countries overlay", async ({ appPage }) => {
   test.setTimeout(120000);
 
@@ -49,6 +53,20 @@ test("load eox_cloudless with Countries overlay", async ({ appPage }) => {
 
   // Now add the Countries library layer on top
   await appPage.addLibraryLayer("World", "Countries");
+  await appPage.waitForIdle();
+
+  const state = await appPage.getAppState();
+  expect(state.layers.map((l) => [l.name, l.kind])).toEqual([
+    ["eox_cloudless.tif", "raster"],
+    ["World: Countries", "vector"],
+  ]);
+  expect(state.layers[0]).toMatchObject({
+    crs: { epsg: 4326 },
+    bbox: { min_x: -180, min_y: -90, max_x: 180, max_y: 90 },
+    raster: { width: 512, height: 256 },
+    projected: true,
+    rendered: true,
+  });
 
   await appPage.expectScreenshot(
     "real-data-eox-eox-cloudless-with-countries.png",
@@ -64,7 +82,44 @@ for (const filePath of geotiffFiles) {
     test.slow();
 
     await appPage.loadGeoTIFFFile(`./dist/geotiff-test-data/${filePath}`);
+    await appPage.waitForIdle();
+
+    const state = await appPage.getAppState();
+    expect(state.messages).toEqual([]);
+    const layer = await appPage.getLayer(fileName(filePath));
+    expect(layer).toMatchObject({
+      kind: "raster",
+      projected: true,
+      rendered: true,
+    });
+    expect(layer.projected_bbox).not.toBeNull();
 
     await appPage.expectScreenshot(snapshotName(filePath));
   });
 }
+
+test("load a GeoTIFF by URL", async ({ appPage }) => {
+  test.slow();
+  const url = new URL(
+    "/geotiff-test-data/rasterio_generated/fixtures/uint8_rgb_deflate_block64_cog.tif",
+    appPage.page.url(),
+  ).href;
+  const state = await appPage.dispatch([
+    { cmd: "load_url", url },
+    { cmd: "wait_idle" },
+  ]);
+  expect(state.layers).toHaveLength(1);
+  expect(state.layers[0]).toMatchObject({
+    name: "uint8_rgb_deflate_block64_cog.tif",
+    kind: "raster",
+    crs: { epsg: 4326 },
+    raster: { width: 128, height: 128, format: "rgba" },
+    projected: true,
+    rendered: true,
+  });
+  const bbox = state.layers[0].bbox!;
+  expect(bbox.min_x).toBeCloseTo(0);
+  expect(bbox.min_y).toBeCloseTo(-1.28);
+  expect(bbox.max_x).toBeCloseTo(1.28);
+  expect(bbox.max_y).toBeCloseTo(0);
+});
