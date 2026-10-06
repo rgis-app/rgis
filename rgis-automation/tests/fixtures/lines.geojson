@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Path" },
+      "geometry": { "type": "LineString", "coordinates": [[-20, 40], [0, 45], [20, 40]] }
+    }
+  ]
+}

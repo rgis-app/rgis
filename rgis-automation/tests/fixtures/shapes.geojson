@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Square", "rank": 1 },
+      "geometry": { "type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Triangle", "rank": 2 },
+      "geometry": { "type": "Polygon", "coordinates": [[[20, 20], [30, 20], [25, 30], [20, 20]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Arrow", "rank": 3 },
+      "geometry": { "type": "Polygon", "coordinates": [[[-10, -5], [-2, -5], [-6, 5], [-10, -5]]] }
+    }
+  ]
+}
