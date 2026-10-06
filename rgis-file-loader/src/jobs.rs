@@ -51,14 +51,16 @@ impl bevy_jobs::Job for LoadFileJob {
                 Vec::with_capacity(loaded_features.len());
 
             for f in loaded_features {
-                let mut feature = geo_features::FeatureBuilder::new()
-                    .with_geometry(f.geometry)
+                // Fix the geometry before building the feature so its bounding
+                // rect describes the fixed geometry, not the original.
+                let geometry = if is_geographic {
+                    geo_fix_antimeridian::fix_geometry(&f.geometry)
+                } else {
+                    f.geometry
+                };
+                let feature = geo_features::FeatureBuilder::new()
+                    .with_geometry(geometry)
                     .build();
-                if is_geographic {
-                    if let Some(ref geom) = feature.geometry {
-                        feature.geometry = Some(geo_fix_antimeridian::fix_geometry(geom));
-                    }
-                }
                 features.push(feature);
                 property_maps.push(f.properties);
             }
