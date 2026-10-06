@@ -32,6 +32,32 @@ type AttributeTableWindowState = Option<rgis_primitives::LayerId>;
 #[derive(Resource, Default)]
 pub struct ChangeCrsWindowVisible(pub bool);
 
+/// Titles of the egui windows drawn during the most recent UI pass.
+///
+/// Cleared at the start of every pass and filled in by each window's render
+/// system, so readers outside the pass always see a complete frame.
+#[derive(Resource, Default, Debug)]
+pub struct OpenWindows(std::collections::BTreeSet<String>);
+
+impl OpenWindows {
+    pub fn record(&mut self, title: impl Into<String>) {
+        self.0.insert(title.into());
+    }
+
+    pub fn contains(&self, title: &str) -> bool {
+        self.0.contains(title)
+    }
+
+    /// Window titles in alphabetical order.
+    pub fn titles(&self) -> impl Iterator<Item = &str> {
+        self.0.iter().map(String::as_str)
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
 /// Data displayed in the operation window.
 struct OperationWindowData {
     operation: Box<dyn Send + Sync + rgis_geo_ops::Operation>,
@@ -51,6 +77,7 @@ impl bevy::app::Plugin for Plugin {
             .insert_resource(rgis_units::BottomPanelHeight(0.))
             .insert_resource(rgis_units::SidePanelWidth(0.))
             .insert_resource(ChangeCrsWindowVisible::default())
+            .init_resource::<OpenWindows>()
             .insert_resource(ClearColor::default());
 
         systems::configure(app);

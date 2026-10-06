@@ -36,6 +36,22 @@ pub fn set_animations_enabled(enabled: bool) {
     rgis_renderer::ANIMATIONS_ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// The app state as JSON (see `rgis_automation::AppState`) as of the end of
+/// the last frame. The state is only tracked once it's been asked for, so the
+/// first call (and any call before the next frame) returns `"null"`; poll.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn get_app_state() -> String {
+    match rgis_automation::latest_state_json() {
+        Some(Ok(json)) => json,
+        Some(Err(e)) => {
+            error!("Couldn't serialize the app state: {e}");
+            "null".into()
+        }
+        None => "null".into(),
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn close_window(title: &str) {
@@ -126,6 +142,7 @@ pub fn run() {
     app.add_plugins(rgis_transform::Plugin);
     app.add_plugins(rgis_settings::Plugin);
     app.add_plugins(rgis_crs::Plugin::default());
+    app.add_plugins(rgis_automation::Plugin);
 
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref args) = cli_args {

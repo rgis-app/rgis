@@ -56,6 +56,11 @@ pub enum LayerData {
 #[derive(Component, Debug)]
 pub struct SelectedLayer;
 
+/// The feature currently selected on the map (e.g. by clicking it with the
+/// query tool or picking it in the attribute table), if any.
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SelectedFeature(pub Option<(rgis_primitives::LayerId, geo_features::FeatureId)>);
+
 /// Z-order index – lower values are rendered below higher values.
 /// Stored so that the renderer can calculate proper z positions.
 #[derive(Component, Debug, Clone, Copy)]
@@ -369,6 +374,7 @@ impl bevy::app::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(LayerOrder::default());
         app.insert_resource(LayerIdToEntity::default());
+        app.insert_resource(SelectedFeature::default());
         systems::configure(app);
     }
 }

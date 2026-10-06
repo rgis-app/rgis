@@ -48,6 +48,11 @@ impl LayerId {
             num::NonZeroU16::new(value).expect("LayerId value must be non-zero"),
         )
     }
+
+    /// Returns the raw numeric value of this `LayerId`.
+    pub fn get(self) -> u16 {
+        self.0.get()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

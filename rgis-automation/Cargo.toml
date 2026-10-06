@@ -1,0 +1,27 @@
+[package]
+name = "rgis-automation"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+bevy_jobs = { workspace = true }
+crs-definitions = { workspace = true }
+geo = { workspace = true }
+geo-features = { path = "../geo-features" }
+geo-raster = { path = "../geo-raster" }
+rgis-camera = { path = "../rgis-camera" }
+rgis-crs = { path = "../rgis-crs" }
+rgis-layers = { path = "../rgis-layers" }
+rgis-primitives = { path = "../rgis-primitives" }
+rgis-renderer = { path = "../rgis-renderer" }
+rgis-ui = { path = "../rgis-ui" }
+rgis-ui-messages = { path = "../rgis-ui-messages" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+

@@ -269,6 +269,25 @@ fn handle_duplicate_layer_events(
     }
 }
 
+fn track_selected_feature(
+    mut feature_selected_reader: MessageReader<rgis_events::FeatureSelectedMessage>,
+    mut features_deselected_reader: MessageReader<rgis_events::FeaturesDeselectedMessage>,
+    mut delete_layer_reader: MessageReader<rgis_events::DeleteLayerMessage>,
+    mut selected_feature: ResMut<crate::SelectedFeature>,
+) {
+    if features_deselected_reader.read().next().is_some() {
+        selected_feature.0 = None;
+    }
+    if let Some(event) = feature_selected_reader.read().last() {
+        selected_feature.0 = Some((event.0, event.1));
+    }
+    for event in delete_layer_reader.read() {
+        if selected_feature.0.is_some_and(|(layer_id, _)| layer_id == event.0) {
+            selected_feature.0 = None;
+        }
+    }
+}
+
 pub fn configure(app: &mut App) {
     app.add_systems(
         Update,
@@ -287,6 +306,7 @@ pub fn configure(app: &mut App) {
             )
                 .chain(),
             handle_create_raster_layer_events,
+            track_selected_feature,
         )
             .in_set(rgis_primitives::RgisSet::LayerProcessing),
     );
