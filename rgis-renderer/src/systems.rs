@@ -514,13 +514,23 @@ fn alpha_mode_for_color(color: Color) -> AlphaMode2d {
 
 fn handle_crs_changed_events(
     _event: On<rgis_events::CrsChangedEvent>,
-    query: Query<(&rgis_primitives::LayerId, Entity), With<MeshMaterial2d<ColorMaterial>>>,
+    query: Query<
+        Entity,
+        (
+            With<rgis_primitives::LayerId>,
+            Without<rgis_layers::LayerMarker>,
+            Without<ChildOf>,
+        ),
+    >,
     mut commands: Commands,
 ) {
     // The RgisSet ordering (Transform before Rendering) ensures that reprojection
     // job completions are processed before mesh spawning, preventing a race where
     // newly projected meshes could be deleted by a stale CRS-change despawn.
-    for (_, entity) in &query {
+    //
+    // Despawn the top-level render entities (vector mesh parents and rasters);
+    // their children, which carry the materials, go with them.
+    for entity in &query {
         commands.entity(entity).despawn();
     }
 }

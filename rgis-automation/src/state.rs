@@ -141,6 +141,11 @@ pub struct LayerState {
     /// Whether meshes/sprites have been spawned for the layer. `None` when
     /// the renderer isn't running (e.g. in headless tests).
     pub rendered: Option<bool>,
+    /// How many render entities are drawing the layer (e.g. one per vector
+    /// mesh batch plus one per point sprite). Should not change when the CRS
+    /// changes; growing means stale geometry is still on screen. `None` when
+    /// the renderer isn't running.
+    pub render_entities: Option<usize>,
     /// sRGB `#rrggbbaa`; `None` for layers without a fill (lines, rasters).
     pub fill_color: Option<String>,
     /// sRGB `#rrggbbaa`.
@@ -338,12 +343,16 @@ fn layer_states(world: &World) -> Vec<LayerState> {
 
             // The index also contains the layer entity itself (it carries a
             // `LayerId`); anything else is a render entity.
-            let rendered = render_index.map(|render_index| {
-                render_index.get(id).iter().any(|render_entity| {
-                    world
-                        .get::<rgis_layers::LayerMarker>(*render_entity)
-                        .is_none()
-                })
+            let render_entities = render_index.map(|render_index| {
+                render_index
+                    .get(id)
+                    .iter()
+                    .filter(|render_entity| {
+                        world
+                            .get::<rgis_layers::LayerMarker>(**render_entity)
+                            .is_none()
+                    })
+                    .count()
             });
 
             Some(LayerState {
@@ -365,7 +374,8 @@ fn layer_states(world: &World) -> Vec<LayerState> {
                 bbox,
                 projected: data.is_active(),
                 projected_bbox,
-                rendered,
+                rendered: render_entities.map(|count| count > 0),
+                render_entities,
                 fill_color: color.fill.map(color_hex),
                 stroke_color: color_hex(color.stroke),
                 point_size: entity

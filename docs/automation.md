@@ -70,7 +70,7 @@ the extension when omitted. `crs` is `4326`, `"EPSG:4326"`, or a PROJ string.
 
 `rgis_automation::AppState` (`rgis-automation/src/state.rs` documents each
 field) includes:
-- layers in draw order: kind, visibility, CRS, feature count, geometry types, bbox in the source and target CRS, colors
+- layers in draw order: kind, visibility, CRS, feature count, geometry types, bbox in the source and target CRS, colors, how many render entities draw them
 - the target CRS and the camera
 - open windows and the selected feature
 - message-window text, command errors and recent warnings/errors
