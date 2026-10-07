@@ -42,6 +42,18 @@ impl<'a> CrsInput<'a> {
 
 pub type Outcome = Result<(geodesy::ctx::OpHandle, Option<u16>, Option<String>), Error>;
 
+/// The CRS the user entered, or `None` if nothing has parsed yet.
+pub fn outcome_crs(outcome: Option<&Outcome>) -> Option<rgis_primitives::Crs> {
+    let Some(Ok((op_handle, epsg_code, proj_string))) = outcome else {
+        return None;
+    };
+    Some(rgis_primitives::Crs {
+        epsg_code: *epsg_code,
+        proj_string: proj_string.clone(),
+        op_handle: *op_handle,
+    })
+}
+
 impl egui::Widget for CrsInput<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.vertical(|ui| {
