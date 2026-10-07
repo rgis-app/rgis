@@ -28,6 +28,7 @@ export interface LayerState {
   projected_bbox: Bbox | null;
   projected: boolean;
   rendered: boolean | null;
+  render_entities: number | null;
   fill_color: string | null;
   stroke_color: string;
   point_size: number;

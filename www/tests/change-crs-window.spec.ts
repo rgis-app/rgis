@@ -70,4 +70,24 @@ test.describe("change CRS window", () => {
     ).rejects.toThrow("Unknown EPSG code: 9999");
     expect((await appPage.getAppState()).target_crs?.epsg).toBe(4326);
   });
+
+  test("changing the CRS replaces the old meshes", async ({ appPage }) => {
+    test.setTimeout(60000);
+
+    let state = await appPage.dispatch([
+      { cmd: "load_text", text: SQUARE_GEOJSON, format: "geojson", name: "Square" },
+      { cmd: "wait_idle" },
+    ]);
+    const before = state.layers[0].render_entities!;
+    expect(before).toBeGreaterThan(0);
+
+    // EPSG:2229 (NAD83 / California zone 5 (ftUS)), as in the original report.
+    state = await appPage.dispatch([
+      { cmd: "change_crs", epsg: 2229 },
+      { cmd: "wait_idle" },
+    ]);
+    expect(state.target_crs?.epsg).toBe(2229);
+    // The meshes in the old CRS must be gone, not drawn alongside the new ones.
+    expect(state.layers[0].render_entities).toBe(before);
+  });
 });
