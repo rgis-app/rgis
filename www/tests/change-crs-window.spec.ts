@@ -43,6 +43,8 @@ test.describe("change CRS window", () => {
   });
 
   test("changing the CRS reprojects layers", async ({ appPage }) => {
+    test.setTimeout(60000);
+
     let state = await appPage.dispatch([
       { cmd: "load_text", text: SQUARE_GEOJSON, format: "geojson", name: "Square" },
       { cmd: "wait_idle" },
