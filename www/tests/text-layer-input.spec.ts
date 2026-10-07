@@ -30,14 +30,17 @@ test.describe("text layer input", () => {
   test("adding GeoJSON text creates a layer", async ({ appPage }) => {
     await appPage.clickWidget("GeoJSON");
     await appPage.clickWidget("Input text");
-    await appPage.page.locator("canvas").focus();
-    await appPage.page.keyboard.type(
-      JSON.stringify({
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: [[0, 0], [10, 5]] },
-      }),
-    );
+    // Paste rather than type: one event instead of one per character, which
+    // is too slow on CI.
+    await appPage.page.evaluate((text) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", text);
+      document.dispatchEvent(new ClipboardEvent("paste", { clipboardData }));
+    }, JSON.stringify({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: [[0, 0], [10, 5]] },
+    }));
     await appPage.waitForNextFrame();
     await appPage.clickWidget("Add layer");
     await appPage.waitForIdle();
