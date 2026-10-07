@@ -542,6 +542,27 @@ fn camera_commands() {
     assert!((panned.center.y - (zoomed.center.y - 50. * scale)).abs() < 1.);
 }
 
+/// A camera flight in progress when the CRS changes is cancelled. Otherwise
+/// it carries on to its target in the old CRS: here, a Web Mercator scale of
+/// thousands of metres per pixel that would then be read as degrees per pixel.
+#[test]
+fn crs_change_cancels_camera_flight() {
+    let mut h = Harness::new();
+    h.run(&load("shapes.geojson")).unwrap();
+
+    h.run(
+        r#"[
+            {"cmd": "center_on_layer", "layer": 0},
+            {"cmd": "change_crs", "epsg": 4326},
+            {"cmd": "wait_idle"}
+        ]"#,
+    )
+    .unwrap();
+    let camera = h.state().camera.unwrap();
+    assert!(!camera.animating);
+    assert!(camera.scale < 1., "{} degrees per pixel", camera.scale);
+}
+
 /// Batch runs (`--dump-state` etc.): on failure, the state is still written
 /// and the app exits with code 1.
 #[test]

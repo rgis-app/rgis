@@ -22,15 +22,20 @@ fn init_camera(mut commands: Commands) {
 
 fn handle_change_crs_event(
     event: On<rgis_events::CrsChangedEvent>,
-    mut query: Query<&mut Transform, With<Camera>>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Transform), With<Camera>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     ui_margins: rgis_units::UiMargins,
     geodesy_ctx: Res<rgis_crs::GeodesyContext>,
 ) -> Result {
     let window = windows.single()?;
-    let Ok(mut transform) = query.single_mut() else {
+    let Ok((camera, mut transform)) = query.single_mut() else {
         return Ok(());
     };
+    // A flight in progress is headed for a position in the old CRS.
+    commands
+        .entity(camera)
+        .remove::<crate::fly_to::CameraFlyTo>();
     let map_area = rgis_units::MapArea {
         window,
         left_offset_px: ui_margins.left.0,
