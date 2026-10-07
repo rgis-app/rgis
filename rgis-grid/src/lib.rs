@@ -173,6 +173,42 @@ fn format_value(value: f32) -> String {
     }
 }
 
+// ── Line ranges ─────────────────────────────────────────────────────────────
+
+/// The coordinates grid lines can be drawn at, as `(min, max)`.
+const LONGITUDES: (f64, f64) = (-180.0, 180.0);
+const LATITUDES: (f64, f64) = (-90.0, 90.0);
+const MERCATOR_LATITUDES: (f64, f64) = (-85.051_129, 85.051_129);
+
+/// Backstop for grids without a domain: far more lines than fit in a window
+/// at `MIN_LINE_SPACING_PX` apart.
+const MAX_LINES_PER_AXIS: f64 = 1000.0;
+
+/// Indices `i` of the grid lines at `i * interval` that cover `min..=max`,
+/// limited to lines inside `domain`.
+///
+/// Degree intervals stop growing at 180°, so without a domain, zooming far
+/// out would mean a line every 180° across an unbounded view. If there would
+/// still be more than `MAX_LINES_PER_AXIS` lines, there are none.
+fn line_indices(
+    min: f64,
+    max: f64,
+    interval: f64,
+    domain: Option<(f64, f64)>,
+) -> impl Iterator<Item = i64> {
+    let mut first = (min / interval).floor();
+    let mut last = (max / interval).ceil();
+    if let Some((domain_min, domain_max)) = domain {
+        first = first.max((domain_min / interval).ceil());
+        last = last.min((domain_max / interval).floor());
+    }
+    let drawable = first.is_finite() && last.is_finite() && last - first <= MAX_LINES_PER_AXIS;
+    drawable
+        .then_some(first as i64..=last as i64)
+        .into_iter()
+        .flatten()
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const MIN_LINE_SPACING_PX: f32 = 80.0;
@@ -340,16 +376,22 @@ fn update_grid(
             let lon_interval = nice_degree_interval(deg_per_px_x, MIN_LINE_SPACING_PX);
             let lat_interval = nice_degree_interval(deg_per_px_y, MIN_LINE_SPACING_PX);
 
-            let first_lon = (vp.world_left / lon_interval).floor() as i64;
-            let last_lon = (vp.world_right / lon_interval).ceil() as i64;
-            for i in first_lon..=last_lon {
+            for i in line_indices(
+                f64::from(vp.world_left),
+                f64::from(vp.world_right),
+                f64::from(lon_interval),
+                Some(LONGITUDES),
+            ) {
                 let x = i as f32 * lon_interval;
                 add_rect(&mut positions, &mut indices, x, center_y, thickness, height);
             }
 
-            let first_lat = (vp.world_bottom / lat_interval).floor() as i64;
-            let last_lat = (vp.world_top / lat_interval).ceil() as i64;
-            for i in first_lat..=last_lat {
+            for i in line_indices(
+                f64::from(vp.world_bottom),
+                f64::from(vp.world_top),
+                f64::from(lat_interval),
+                Some(LATITUDES),
+            ) {
                 let y = i as f32 * lat_interval;
                 add_rect(&mut positions, &mut indices, center_x, y, width, thickness);
             }
@@ -370,9 +412,12 @@ fn update_grid(
             let lon_interval = interval;
             let lat_interval = interval;
 
-            let first_lon = (lon_left / lon_interval as f64).floor() as i64;
-            let last_lon = (lon_right / lon_interval as f64).ceil() as i64;
-            for i in first_lon..=last_lon {
+            for i in line_indices(
+                lon_left,
+                lon_right,
+                f64::from(lon_interval),
+                Some(LONGITUDES),
+            ) {
                 let lon = i as f64 * lon_interval as f64;
                 if lon.abs() > 180.0 {
                     continue;
@@ -381,9 +426,12 @@ fn update_grid(
                 add_rect(&mut positions, &mut indices, x, center_y, thickness, height);
             }
 
-            let first_lat = (lat_bottom / lat_interval as f64).floor() as i64;
-            let last_lat = (lat_top / lat_interval as f64).ceil() as i64;
-            for i in first_lat..=last_lat {
+            for i in line_indices(
+                lat_bottom,
+                lat_top,
+                f64::from(lat_interval),
+                Some(MERCATOR_LATITUDES),
+            ) {
                 let lat = i as f64 * lat_interval as f64;
                 if lat.abs() > 85.051_129 {
                     continue;
@@ -396,16 +444,22 @@ fn update_grid(
         CrsKind::Other => {
             let interval = nice_interval(vp.camera_scale, MIN_LINE_SPACING_PX);
 
-            let first_x = (vp.world_left / interval).floor() as i64;
-            let last_x = (vp.world_right / interval).ceil() as i64;
-            for i in first_x..=last_x {
+            for i in line_indices(
+                f64::from(vp.world_left),
+                f64::from(vp.world_right),
+                f64::from(interval),
+                None,
+            ) {
                 let x = i as f32 * interval;
                 add_rect(&mut positions, &mut indices, x, center_y, thickness, height);
             }
 
-            let first_y = (vp.world_bottom / interval).floor() as i64;
-            let last_y = (vp.world_top / interval).ceil() as i64;
-            for i in first_y..=last_y {
+            for i in line_indices(
+                f64::from(vp.world_bottom),
+                f64::from(vp.world_top),
+                f64::from(interval),
+                None,
+            ) {
                 let y = i as f32 * interval;
                 add_rect(&mut positions, &mut indices, center_x, y, width, thickness);
             }
@@ -499,9 +553,12 @@ fn update_grid_labels(
             let lon_interval = nice_degree_interval(deg_per_px_x, MIN_LINE_SPACING_PX);
             let lat_interval = nice_degree_interval(deg_per_px_y, MIN_LINE_SPACING_PX);
 
-            let first_lon = (vp.world_left / lon_interval).floor() as i64;
-            let last_lon = (vp.world_right / lon_interval).ceil() as i64;
-            for i in first_lon..=last_lon {
+            for i in line_indices(
+                f64::from(vp.world_left),
+                f64::from(vp.world_right),
+                f64::from(lon_interval),
+                Some(LONGITUDES),
+            ) {
                 let x = i as f32 * lon_interval;
                 labels.push(LabelSpec {
                     world_x: x,
@@ -511,9 +568,12 @@ fn update_grid_labels(
                 });
             }
 
-            let first_lat = (vp.world_bottom / lat_interval).floor() as i64;
-            let last_lat = (vp.world_top / lat_interval).ceil() as i64;
-            for i in first_lat..=last_lat {
+            for i in line_indices(
+                f64::from(vp.world_bottom),
+                f64::from(vp.world_top),
+                f64::from(lat_interval),
+                Some(LATITUDES),
+            ) {
                 let y = i as f32 * lat_interval;
                 labels.push(LabelSpec {
                     world_x: label_world_x,
@@ -536,9 +596,12 @@ fn update_grid_labels(
             let lon_interval = interval;
             let lat_interval = interval;
 
-            let first_lon = (lon_left / lon_interval as f64).floor() as i64;
-            let last_lon = (lon_right / lon_interval as f64).ceil() as i64;
-            for i in first_lon..=last_lon {
+            for i in line_indices(
+                lon_left,
+                lon_right,
+                f64::from(lon_interval),
+                Some(LONGITUDES),
+            ) {
                 let lon = i as f64 * lon_interval as f64;
                 if lon.abs() > 180.0 {
                     continue;
@@ -552,9 +615,12 @@ fn update_grid_labels(
                 });
             }
 
-            let first_lat = (lat_bottom / lat_interval as f64).floor() as i64;
-            let last_lat = (lat_top / lat_interval as f64).ceil() as i64;
-            for i in first_lat..=last_lat {
+            for i in line_indices(
+                lat_bottom,
+                lat_top,
+                f64::from(lat_interval),
+                Some(MERCATOR_LATITUDES),
+            ) {
                 let lat = i as f64 * lat_interval as f64;
                 if lat.abs() > 85.051_129 {
                     continue;
@@ -572,9 +638,12 @@ fn update_grid_labels(
         CrsKind::Other => {
             let interval = nice_interval(vp.camera_scale, MIN_LINE_SPACING_PX);
 
-            let first_x = (vp.world_left / interval).floor() as i64;
-            let last_x = (vp.world_right / interval).ceil() as i64;
-            for i in first_x..=last_x {
+            for i in line_indices(
+                f64::from(vp.world_left),
+                f64::from(vp.world_right),
+                f64::from(interval),
+                None,
+            ) {
                 let x = i as f32 * interval;
                 labels.push(LabelSpec {
                     world_x: x,
@@ -584,9 +653,12 @@ fn update_grid_labels(
                 });
             }
 
-            let first_y = (vp.world_bottom / interval).floor() as i64;
-            let last_y = (vp.world_top / interval).ceil() as i64;
-            for i in first_y..=last_y {
+            for i in line_indices(
+                f64::from(vp.world_bottom),
+                f64::from(vp.world_top),
+                f64::from(interval),
+                None,
+            ) {
                 let y = i as f32 * interval;
                 labels.push(LabelSpec {
                     world_x: label_world_x,
@@ -775,5 +847,117 @@ mod tests {
     #[test]
     fn format_value_small() {
         assert_eq!(format_value(0.0012), "0.0012");
+    }
+
+    // ── line_indices ────────────────────────────────────────────────────
+
+    #[test]
+    fn line_indices_cover_the_view() {
+        let indices: Vec<_> = line_indices(-250.0, 250.0, 100.0, None).collect();
+        assert_eq!(indices, [-3, -2, -1, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn line_indices_stay_inside_the_domain() {
+        let indices: Vec<_> = line_indices(-1e9, 1e9, 45.0, Some(LATITUDES)).collect();
+        assert_eq!(indices, [-2, -1, 0, 1, 2]);
+        // A view entirely past the antimeridian.
+        assert_eq!(
+            line_indices(200.0, 300.0, 10.0, Some(LONGITUDES)).count(),
+            0
+        );
+    }
+
+    #[test]
+    fn line_indices_give_up_on_too_many_lines() {
+        assert_eq!(line_indices(-1e30, 1e30, 1.0, None).count(), 0);
+        assert_eq!(
+            line_indices(f64::NEG_INFINITY, f64::INFINITY, 180.0, None).count(),
+            0
+        );
+    }
+
+    // ── Grid systems ────────────────────────────────────────────────────
+
+    /// Run the grid systems once with the camera at `scale` target-CRS units
+    /// per pixel, and return how many grid lines and labels they made.
+    fn grid_at_scale(epsg: u16, scale: f32) -> (usize, usize) {
+        let mut geodesy_ctx = geodesy::ctx::Minimal::default();
+        let op_handle = rgis_crs::epsg_code_to_geodesy_op_handle(&mut geodesy_ctx, epsg)
+            .unwrap_or_else(|e| panic!("EPSG:{epsg}: {e}"));
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<Mesh>()
+            .init_asset::<ColorMaterial>()
+            .init_resource::<ClearColor>()
+            .insert_resource(rgis_crs::TargetCrs(rgis_primitives::Crs {
+                epsg_code: Some(epsg),
+                proj_string: None,
+                op_handle,
+            }))
+            .insert_resource(GridFont(Handle::default()))
+            .insert_resource(rgis_units::SidePanelWidth(0.0))
+            .insert_resource(rgis_units::BottomPanelHeight(0.0))
+            .add_systems(Startup, spawn_grid)
+            .add_systems(Update, (update_grid, update_grid_labels));
+        app.world_mut().spawn((
+            Window {
+                resolution: bevy::window::WindowResolution::new(1280, 720),
+                ..default()
+            },
+            bevy::window::PrimaryWindow,
+        ));
+        app.world_mut().spawn((
+            Camera::default(),
+            Transform::from_scale(Vec3::new(scale, scale, 1.0)),
+        ));
+        app.update();
+
+        let world = app.world_mut();
+        let labels = world
+            .query_filtered::<(), With<GridLabel>>()
+            .iter(world)
+            .count();
+        let mesh = world
+            .query_filtered::<&Mesh2d, With<Grid>>()
+            .iter(world)
+            .next()
+            .map(|mesh| mesh.0.clone())
+            .unwrap_or_else(|| panic!("no grid mesh"));
+        let vertices = world
+            .resource::<Assets<Mesh>>()
+            .get(&mesh)
+            .and_then(|mesh| mesh.attribute(Mesh::ATTRIBUTE_POSITION))
+            .map_or(0, |positions| positions.len());
+        // Each line is a rectangle with four vertices.
+        (vertices / 4, labels)
+    }
+
+    /// EPSG codes for a geographic CRS, Web Mercator, and a projected CRS
+    /// (UTM zone 33N), which each take a different path through the grid.
+    const CRS_KINDS: [u16; 3] = [4326, 3857, 32633];
+
+    #[test]
+    fn grid_at_normal_zoom() {
+        for (epsg, scale) in CRS_KINDS.into_iter().zip([0.1, 10_000.0, 1_000.0]) {
+            let (lines, labels) = grid_at_scale(epsg, scale);
+            assert!(lines >= 10, "EPSG:{epsg}: only {lines} lines");
+            assert_eq!(lines, labels, "EPSG:{epsg}");
+        }
+    }
+
+    // Regression test for #283: zooming far out used to generate a line and a
+    // label every 180° across the whole view, which could be billions.
+    #[test]
+    fn grid_when_zoomed_far_out() {
+        for epsg in CRS_KINDS {
+            let (lines, labels) = grid_at_scale(epsg, 1e30);
+            // About one window's worth of lines, at most.
+            assert!(
+                lines <= 50 && labels <= 50,
+                "EPSG:{epsg}: {lines} lines and {labels} labels"
+            );
+        }
     }
 }

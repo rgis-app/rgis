@@ -12,3 +12,7 @@ crs-definitions = { workspace = true }
 rgis-crs = { path = "../rgis-crs" }
 rgis-units = { path = "../rgis-units" }
 tracing = { workspace = true }
+
+[dev-dependencies]
+geodesy = { workspace = true }
+rgis-primitives = { path = "../rgis-primitives" }

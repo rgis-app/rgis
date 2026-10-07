@@ -5723,7 +5723,9 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "crs-definitions",
+ "geodesy",
  "rgis-crs",
+ "rgis-primitives",
  "rgis-units",
  "tracing",
 ]
