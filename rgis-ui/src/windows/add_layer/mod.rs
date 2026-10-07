@@ -59,6 +59,7 @@ impl State {
         self.text_edit_contents = String::new();
         self.crs_input = DEFAULT_CRS_INPUT.into();
         self.crs_input_mode = Default::default();
+        self.crs_input_outcome = None;
         self.selected_source = Source::Unselected;
         self.selected_format = None;
     }
@@ -137,7 +138,11 @@ impl AddLayer<'_> {
                 }
             }
             Source::Text => {
-                if let Some(new_output) = (by_text::ByText { state: self.state }).show(ui)
+                if let Some(new_output) = (by_text::ByText {
+                    state: self.state,
+                    geodesy_ctx: self.geodesy_ctx,
+                })
+                .show(ui)
                 {
                     output = Some(new_output);
                 }

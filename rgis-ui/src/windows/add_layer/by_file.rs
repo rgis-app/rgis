@@ -65,8 +65,9 @@ impl<'a> ByFile<'a> {
             output = Some(AddLayerOutput::OpenFile);
         }
 
-        let submittable = self.selected_file.0.is_some()
-            && matches!(self.state.crs_input_outcome, Some(Ok(_)));
+        let source_crs =
+            crate::widgets::crs_input::outcome_crs(self.state.crs_input_outcome.as_ref());
+        let submittable = self.selected_file.0.is_some() && source_crs.is_some();
 
         if let Some(loaded_file) = &self.selected_file.0 {
             ui.label(format!("Selected file: {}", loaded_file.file_name));
@@ -88,28 +89,20 @@ impl<'a> ByFile<'a> {
         let add_layer_button = ui.add_enabled(submittable, egui::Button::new("Add layer"));
         crate::widget_registry::register("Add layer", add_layer_button.rect);
         if add_layer_button.clicked() {
-            match self.selected_file.0.take() {
-                Some(loaded_file) => {
-                    let outcome = self
-                        .state
-                        .crs_input_outcome
-                        .as_ref()
-                        .unwrap()
-                        .as_ref()
-                        .unwrap();
+            match (self.selected_file.0.take(), source_crs) {
+                (Some(loaded_file), Some(source_crs)) => {
                     output = Some(AddLayerOutput::LoadFromFile {
                         file_name: loaded_file.file_name,
                         file_format: selected_format,
                         bytes: loaded_file.bytes,
-                        source_crs: rgis_primitives::Crs {
-                            epsg_code: outcome.1,
-                            proj_string: outcome.2.clone(),
-                            op_handle: outcome.0,
-                        },
+                        source_crs,
                     });
                 }
-                None => {
+                (None, _) => {
                     error!("Expected file to exist when loading, but no file exists");
+                }
+                (Some(_), None) => {
+                    error!("Expected a source CRS when loading, but none was entered");
                 }
             };
         }
