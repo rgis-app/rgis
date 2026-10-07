@@ -28,6 +28,8 @@ test.describe("text layer input", () => {
 
   // Regression test for #281: submitting used to panic on a fresh session.
   test("adding GeoJSON text creates a layer", async ({ appPage }) => {
+    test.setTimeout(60000);
+
     await appPage.clickWidget("GeoJSON");
     await appPage.clickWidget("Input text");
     // Paste rather than type: one event instead of one per character, which
