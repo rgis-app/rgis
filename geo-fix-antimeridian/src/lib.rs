@@ -618,6 +618,28 @@ mod tests {
     use geo::{line_string, polygon};
 
     #[test]
+    fn normalize_lon_wraps_into_range() {
+        assert_eq!(normalize_lon(0.0), 0.0);
+        assert_eq!(normalize_lon(180.0), 180.0);
+        assert_eq!(normalize_lon(-180.0), -180.0);
+        assert_eq!(normalize_lon(181.0), -179.0);
+        assert_eq!(normalize_lon(-181.0), 179.0);
+        assert_eq!(normalize_lon(540.0), 180.0);
+        assert_eq!(normalize_lon(-540.0), -180.0);
+        assert_eq!(normalize_lon(720.0), 0.0);
+    }
+
+    #[test]
+    fn normalize_lon_terminates_on_extreme_values() {
+        let lon = normalize_lon(1e20);
+        assert!((-180.0..=180.0).contains(&lon));
+        let lon = normalize_lon(-1e20);
+        assert!((-180.0..=180.0).contains(&lon));
+        assert!(normalize_lon(f64::INFINITY).is_nan());
+        assert!(normalize_lon(f64::NAN).is_nan());
+    }
+
+    #[test]
     fn no_crossing() {
         let polygon = polygon![
             (x: 0.0, y: 0.0),

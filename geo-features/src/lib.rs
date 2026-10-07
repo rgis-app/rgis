@@ -129,7 +129,11 @@ impl<Scalar: geo::CoordNum> geo::CoordsIter for FeatureCollection<Scalar> {
     }
 
     fn coords_iter(&self) -> Self::Iter<'_> {
-        Box::new(self.features.iter().flat_map(|feature| feature.coords_iter()))
+        Box::new(
+            self.features
+                .iter()
+                .flat_map(|feature| feature.coords_iter()),
+        )
     }
 
     fn exterior_coords_iter(&self) -> Self::ExteriorIter<'_> {
@@ -393,4 +397,57 @@ fn new_id() -> num::NonZeroU64 {
     #[allow(clippy::expect_used)]
     num::NonZeroU64::new(NEXT_ID.fetch_add(1, sync::atomic::Ordering::SeqCst))
         .expect("Encountered more than 2^64 features")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo::{coord, line_string, point, polygon, CoordsIter};
+
+    #[test]
+    fn feature_collection_coords_iter() {
+        let mut fc = FeatureCollection::<f64>::new();
+        fc.features.push(
+            FeatureBuilder::new()
+                .with_geometry(point!(x: 1.0, y: 2.0).into())
+                .build(),
+        );
+        fc.features.push(FeatureBuilder::new().build());
+        fc.features.push(
+            FeatureBuilder::new()
+                .with_geometry(line_string![(x: 3.0, y: 4.0), (x: 5.0, y: 6.0)].into())
+                .build(),
+        );
+
+        let coords: Vec<_> = fc.coords_iter().collect();
+        assert_eq!(
+            coords,
+            vec![
+                coord! { x: 1.0, y: 2.0 },
+                coord! { x: 3.0, y: 4.0 },
+                coord! { x: 5.0, y: 6.0 },
+            ]
+        );
+        assert_eq!(coords.len(), fc.coords_count());
+    }
+
+    #[test]
+    fn feature_collection_exterior_coords_iter() {
+        let mut fc = FeatureCollection::<f64>::new();
+        fc.features.push(
+            FeatureBuilder::new()
+                .with_geometry(
+                    polygon!(
+                        exterior: [(x: 0.0, y: 0.0), (x: 4.0, y: 0.0), (x: 4.0, y: 4.0)],
+                        interiors: [[(x: 1.0, y: 1.0), (x: 2.0, y: 1.0), (x: 2.0, y: 2.0)]],
+                    )
+                    .into(),
+                )
+                .build(),
+        );
+
+        // Closed exterior ring only; the interior ring is skipped.
+        assert_eq!(fc.exterior_coords_iter().count(), 4);
+        assert_eq!(fc.coords_iter().count(), 8);
+    }
 }
