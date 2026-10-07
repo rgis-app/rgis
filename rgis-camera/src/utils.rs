@@ -3,10 +3,17 @@ use bevy::prelude::*;
 pub(crate) fn compute_target_for_rect(
     bounding_rect: geo::Rect<geo_projected::ProjectedScalar>,
     map_area: rgis_units::MapArea,
+    current_transform: &Transform,
 ) -> Option<Transform> {
     let layer_center = bounding_rect.center();
     let scale = determine_scale(bounding_rect, map_area.size());
-    let camera_scale = crate::CameraScale(scale);
+    // A single point has no size to fit, which would give a scale of zero.
+    // Keep the current zoom instead.
+    let camera_scale = if scale.is_normal() {
+        crate::CameraScale(scale)
+    } else {
+        crate::CameraScale::from_transform(current_transform)
+    };
     let mut camera_offset = match crate::CameraOffset::from_coord(layer_center) {
         Ok(offset) => offset,
         Err(e) => {
@@ -33,7 +40,7 @@ pub(crate) fn center_camera_on_projected_world_rect(
     camera_transform: &mut Transform,
     map_area: rgis_units::MapArea,
 ) {
-    if let Some(target) = compute_target_for_rect(bounding_rect, map_area) {
+    if let Some(target) = compute_target_for_rect(bounding_rect, map_area, camera_transform) {
         camera_transform.translation = target.translation;
         camera_transform.scale = target.scale;
         debug!("New transform scale: {:?}", camera_transform.scale);
