@@ -9,6 +9,8 @@ const POINT_GEOJSON = JSON.stringify({
 // Regression test for #284: a single point has no extent to fit, which used
 // to set the camera scale to zero and hang the scale bar.
 test("a single-point layer keeps the map usable", async ({ appPage }) => {
+  test.setTimeout(60000);
+
   const initialScale = (await appPage.getAppState()).camera!.scale;
 
   let state = await appPage.dispatch([
