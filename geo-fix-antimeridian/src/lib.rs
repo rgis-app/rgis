@@ -36,7 +36,11 @@ fn normalize_lon<T: CoordFloat>(lon: T) -> T {
         return lon;
     }
 
-    let result = (lon + half).rem_euclid(full) - half;
+    let mut result = (lon + half) % full;
+    if result < T::zero() {
+        result = result + full;
+    }
+    let result = result - half;
     if result == -half && lon > T::zero() {
         half
     } else {
