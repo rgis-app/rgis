@@ -542,6 +542,37 @@ fn camera_commands() {
     assert!((panned.center.y - (zoomed.center.y - 50. * scale)).abs() < 1.);
 }
 
+/// Regression test for #284: a single point has no extent to fit, which used
+/// to set the camera scale to zero (hanging the scale bar, and leaving zoom
+/// stuck at zero).
+#[test]
+fn center_on_a_single_point() {
+    let mut h = Harness::new();
+    let point = serde_json::json!({
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [10, 20]},
+    });
+    let script = serde_json::json!([
+        {"cmd": "load_text", "text": point.to_string(), "format": "geojson"},
+        {"cmd": "wait_idle"},
+    ]);
+    h.run(&script.to_string()).unwrap();
+    let initial_scale = h.state().camera.unwrap().scale;
+
+    h.run(r#"[{"cmd": "center_on_layer", "layer": 0}, {"cmd": "wait_idle"}]"#)
+        .unwrap();
+    let state = h.state();
+    let camera = state.camera.unwrap();
+    assert_eq!(camera.scale, initial_scale);
+    let point = state.layers[0].projected_bbox.unwrap();
+    assert!((camera.center.x - point.min_x).abs() < 1.);
+    assert!((camera.center.y - point.min_y).abs() < 1.);
+
+    h.run(r#"[{"cmd": "zoom", "factor": 2}]"#).unwrap();
+    assert_eq!(h.state().camera.unwrap().scale, initial_scale / 2.);
+}
+
 /// A camera flight in progress when the CRS changes is cancelled. Otherwise
 /// it carries on to its target in the old CRS: here, a Web Mercator scale of
 /// thousands of metres per pixel that would then be read as degrees per pixel.

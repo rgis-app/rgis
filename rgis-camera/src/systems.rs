@@ -193,7 +193,7 @@ fn center_camera_on_feature(
             bottom_offset_px: ui_margins.bottom.0,
             top_offset_px: ui_margins.top.0,
         };
-        if let Some(target) = crate::utils::compute_target_for_rect(bounding_rect, map_area) {
+        if let Some(target) = crate::utils::compute_target_for_rect(bounding_rect, map_area, transform) {
             commands
                 .entity(cam_entity)
                 .insert(crate::fly_to::CameraFlyTo::new(transform, &target));
@@ -255,7 +255,7 @@ fn center_camera(
             bottom_offset_px: ui_margins.bottom.0,
             top_offset_px: ui_margins.top.0,
         };
-        if let Some(target) = crate::utils::compute_target_for_rect(bounding_rect, map_area) {
+        if let Some(target) = crate::utils::compute_target_for_rect(bounding_rect, map_area, transform) {
             commands
                 .entity(cam_entity)
                 .insert(crate::fly_to::CameraFlyTo::new(transform, &target));

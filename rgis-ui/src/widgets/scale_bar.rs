@@ -16,7 +16,9 @@ pub fn render_map_scale(
     let Ok(transform) = query.single() else { return; };
     let scale = transform.scale.x;
     let bar_max_width = 100.;
-    let bar_in_meter = desired_bar_length(scale * bar_max_width);
+    let Some(bar_in_meter) = desired_bar_length(scale * bar_max_width) else {
+        return;
+    };
     let bar_width = bar_in_meter / scale;
     let bar_text = distance_to_readable_string(bar_in_meter);
 
@@ -81,18 +83,19 @@ pub fn render_map_scale(
         });
 }
 
-fn desired_bar_length(full_bar_length: f32) -> f32 {
-    let mut desired_length = 2e38;
-    for i in full_bar_length.log10().floor() as i32..=f32::MAX_10_EXP {
-        for j in [1., 2., 5.] {
-            let length = 10_f32.powi(i) * j;
-            if full_bar_length < length {
-                break;
-            }
-            desired_length = length;
-        }
+/// The longest "round" length (1, 2, or 5 × 10ⁿ) that fits in
+/// `full_bar_length`, or `None` if the length is zero, negative, or not finite.
+fn desired_bar_length(full_bar_length: f32) -> Option<f32> {
+    if !(full_bar_length.is_finite() && full_bar_length > 0.) {
+        return None;
     }
-    desired_length
+    // `log10` can be off by one near powers of ten, so try the neighboring
+    // exponents too.
+    let exponent = full_bar_length.log10().floor() as i32;
+    (exponent - 1..=exponent + 1)
+        .rev()
+        .flat_map(|i| [5., 2., 1.].map(|j| 10_f32.powi(i) * j))
+        .find(|&length| length <= full_bar_length)
 }
 
 pub fn distance_to_readable_string(distance: f32) -> String {
@@ -119,5 +122,27 @@ fn get_proper_distance_unit(distance: f32) -> (&'static str, f32) {
         21..=23 => ("Z", 1e-21),
         24..=26 => ("Y", 1e-24),
         27..=i32::MAX => ("Y", 1e-24),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bar_length_is_a_round_number() {
+        assert_eq!(desired_bar_length(150.), Some(100.));
+        assert_eq!(desired_bar_length(1000.), Some(1000.));
+        assert_eq!(desired_bar_length(999.), Some(500.));
+        assert_eq!(desired_bar_length(4.5e6), Some(2e6));
+        assert_eq!(desired_bar_length(0.03), Some(0.02));
+    }
+
+    // Regression test for #284: a zero scale used to loop ~2 billion times.
+    #[test]
+    fn no_bar_for_unusable_scales() {
+        for length in [0., -1., f32::NAN, f32::INFINITY] {
+            assert_eq!(desired_bar_length(length), None, "{length}");
+        }
     }
 }
