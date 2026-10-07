@@ -104,6 +104,10 @@ test.describe("layer management", () => {
   });
 
   test("layer commands update the state", async ({ appPage }) => {
+    // Six layer operations on the 177-feature Countries layer, on top of
+    // loading it in `beforeEach`.
+    test.setTimeout(120000);
+
     let state = await appPage.dispatch([
       { cmd: "duplicate_layer", layer: "World: Countries" },
       { cmd: "wait_idle" },
