@@ -8,3 +8,6 @@ impl bevy::app::Plugin for Plugin {
         systems::configure(app);
     }
 }
+
+#[cfg(test)]
+mod alignment_tests;

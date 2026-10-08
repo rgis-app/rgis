@@ -814,27 +814,16 @@ fn calculate_all_distances(
     let target_op_handle =
         rgis_crs::epsg_code_to_geodesy_op_handle(&mut *geodesy_ctx_inner, target_epsg_code).ok()?;
 
-    let transformer = geo_geodesy::Transformer::from_geodesy(
+    let transformer = rgis_crs::CrsTransformer::from_parts(
         &*geodesy_ctx_inner,
-        target_crs.0.op_handle,
-        target_op_handle,
-        true, // target is WGS84 (geographic)
-    )
-    .ok()?;
+        (target_crs.0.op_handle, target_crs.0.is_geographic()),
+        (target_op_handle, true), // WGS84 is geographic
+    );
 
-    let mut start_lat_lon = geo::Geometry::Point(geo::Point::new(start.x, start.y));
-    let mut end_lat_lon = geo::Geometry::Point(geo::Point::new(end.x, end.y));
+    // `transform_coord` returns degrees for a geographic target.
+    let start_point = geo::Point(transformer.transform_coord(start).ok()?);
+    let end_point = geo::Point(transformer.transform_coord(end).ok()?);
 
-    transformer.transform(&mut start_lat_lon).ok()?;
-    transformer.transform(&mut end_lat_lon).ok()?;
-
-    let (Some(geo::Geometry::Point(start_point)), Some(geo::Geometry::Point(end_point))) =
-        (Some(start_lat_lon), Some(end_lat_lon))
-    else {
-        return None;
-    };
-
-    // geo_geodesy::Transformer::transform() already converts from radians to degrees
     Some(AllDistances {
         haversine: Haversine.distance(start_point, end_point),
         geodesic: Geodesic.distance(start_point, end_point),

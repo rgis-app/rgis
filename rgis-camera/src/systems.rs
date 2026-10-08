@@ -48,13 +48,8 @@ fn handle_change_crs_event(
 
     {
         let geodesy_ctx = geodesy_ctx.read().unwrap();
-        let transformer = geo_geodesy::Transformer::from_geodesy(
-            &*geodesy_ctx,
-            event.old.op_handle,
-            event.new.op_handle,
-            event.new.is_geographic(),
-        )?;
-        transformer.transform(&mut geometry)?;
+        rgis_crs::CrsTransformer::new(&*geodesy_ctx, &event.old, &event.new)
+            .transform_geometry(&mut geometry)?;
     }
 
     let geo::Geometry::Rect(rect) = geometry else {

@@ -75,7 +75,7 @@ export class AppPage {
     await this.page.waitForFunction(
       () => document.title.includes("ready"),
       null,
-      { timeout: 30000 },
+      { timeout: 60000 },
     );
 
     // Wait for canvas to appear
@@ -418,11 +418,18 @@ export class AppPage {
 }
 
 export const test = base.extend<{ appPage: AppPage }>({
-  appPage: async ({ page }, use) => {
-    const appPage = new AppPage(page);
-    await appPage.init();
-    await use(appPage);
-  },
+  appPage: [
+    async ({ page }, use) => {
+      const appPage = new AppPage(page);
+      await appPage.init();
+      await use(appPage);
+    },
+    // App startup takes ~14 s in CI and sometimes over 30 s, because the
+    // page's main thread is saturated while workers run in parallel. Give
+    // the fixture its own timeout so startup doesn't count against the
+    // test's timeout.
+    { timeout: 120000 },
+  ],
 });
 
 export { expect };

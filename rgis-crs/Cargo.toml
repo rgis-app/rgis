@@ -10,6 +10,7 @@ workspace = true
 [dependencies]
 bevy = { workspace = true }
 geodesy = { workspace = true }
+geo = { workspace = true }
 crs-definitions = { workspace = true }
 rgis-events = { path = "../rgis-events" }
 rgis-primitives = { path = "../rgis-primitives" }

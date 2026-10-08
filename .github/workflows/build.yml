@@ -82,6 +82,15 @@ jobs:
       - name: Run Playwright tests
         id: playwright
         run: cd www && npx playwright test
+      # The re-run below clears test-results/, so upload the first run's
+      # traces before it does.
+      - name: Upload Playwright test results
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() && steps.playwright.outcome == 'failure' }}
+        with:
+          name: playwright-test-results
+          path: www/test-results/
+          retention-days: 30
       - name: Re-run failed tests with --update-snapshots
         if: ${{ failure() && steps.playwright.outcome == 'failure' }}
         run: cd www && npx playwright test --update-snapshots --retries=0
