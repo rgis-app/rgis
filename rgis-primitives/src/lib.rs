@@ -106,6 +106,20 @@ pub struct AreaOfUse {
     pub lon_east: f64,
 }
 
+impl AreaOfUse {
+    /// Grow the area on every side by `fraction` of its width/height.
+    pub fn expanded(self, fraction: f64) -> Self {
+        let dx = (self.lon_east - self.lon_west) * fraction;
+        let dy = (self.lat_north - self.lat_south) * fraction;
+        AreaOfUse {
+            lat_south: self.lat_south - dy,
+            lon_west: self.lon_west - dx,
+            lat_north: self.lat_north + dy,
+            lon_east: self.lon_east + dx,
+        }
+    }
+}
+
 /// Parse `BBOX[lat_south,lon_west,lat_north,lon_east]` from a WKT string.
 fn parse_bbox_from_wkt(wkt: &str) -> Option<AreaOfUse> {
     let start = wkt.find("BBOX[")?;

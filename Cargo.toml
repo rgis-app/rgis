@@ -75,7 +75,6 @@ crs-definitions = "0.4"
 dark-light = "2.0"
 geo = "0.32"
 geo-bevy = "10"
-geo-geodesy = "8"
 geodesy = "0.15"
 geozero = { git = "https://github.com/georust/geozero.git", branch = "main" }
 num-t = "5"

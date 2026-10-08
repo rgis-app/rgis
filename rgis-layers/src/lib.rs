@@ -73,13 +73,42 @@ pub struct LayerZIndex(pub usize);
 #[derive(Copy, Clone, Debug)]
 pub struct LayerIndex(pub usize);
 
+/// A raster's footprint in the target CRS, as a `(cols + 1) × (rows + 1)`
+/// grid of vertices. Vertex `row * (cols + 1) + col` holds the projected
+/// position of a source-CRS sample point and the texture coordinate of that
+/// same point.
 #[derive(Debug)]
 pub struct ProjectedRasterGrid {
     pub cols: u32,
     pub rows: u32,
     pub positions: Vec<[f32; 2]>,
+    /// Texture coordinates, `[0, 0]` = top-left of the image. These are not
+    /// necessarily `[col / cols, row / rows]`: the sampled area may be only
+    /// part of the raster (e.g. clamped to the target CRS's area of use).
+    pub uvs: Vec<[f32; 2]>,
     pub valid: Vec<bool>,
     pub extent: geo::Rect<f64>,
+}
+
+impl ProjectedRasterGrid {
+    /// Vertex-index triples for the triangles to render, two per grid cell
+    /// whose four corners are all valid.
+    pub fn triangles(&self) -> impl Iterator<Item = [usize; 3]> + '_ {
+        let stride = self.cols as usize + 1;
+        (0..self.rows as usize)
+            .flat_map(move |row| (0..self.cols as usize).map(move |col| (row, col)))
+            .filter_map(move |(row, col)| {
+                let tl = row * stride + col;
+                let tr = tl + 1;
+                let bl = tl + stride;
+                let br = bl + 1;
+                [tl, tr, bl, br]
+                    .iter()
+                    .all(|&i| self.valid[i])
+                    .then_some([[tl, bl, tr], [tr, bl, br]])
+            })
+            .flatten()
+    }
 }
 
 // ---------------------------------------------------------------------------

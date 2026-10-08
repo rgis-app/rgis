@@ -17,7 +17,6 @@ rgis-layers = { path = "../rgis-layers" }
 rgis-settings = { path = "../rgis-settings" }
 bevy_jobs = { workspace = true }
 crs-definitions = { workspace = true }
-geo-geodesy = { workspace = true }
 geodesy = { workspace = true }
 num-t = { workspace = true }
 rgis-crs = { path = "../rgis-crs" }

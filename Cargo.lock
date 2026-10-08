@@ -3286,17 +3286,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "geo-geodesy"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eea53bc39146839cd069e0f7949b2644068f03329758c1dca3be3d00aecbe518"
-dependencies = [
- "crs-definitions",
- "geo",
- "geodesy",
-]
-
-[[package]]
 name = "geo-geom-type"
 version = "0.1.0"
 dependencies = [
@@ -5642,7 +5631,6 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "geo",
- "geo-geodesy",
  "geo-projected",
  "rgis-crs",
  "rgis-events",
@@ -5665,6 +5653,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "crs-definitions",
+ "geo",
  "geodesy",
  "rgis-events",
  "rgis-primitives",
@@ -5814,7 +5803,6 @@ dependencies = [
  "crs-definitions",
  "geo",
  "geo-features",
- "geo-geodesy",
  "geo-projected",
  "geodesy",
  "num-t",
@@ -5838,7 +5826,6 @@ dependencies = [
  "geo",
  "geo-features",
  "geo-file-loader",
- "geo-geodesy",
  "geo-geom-type",
  "geo-projected",
  "geodesy",
