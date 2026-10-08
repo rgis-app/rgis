@@ -1,9 +1,28 @@
 use std::sync;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Format {
+    GeoJson,
+    GeoTiff,
+}
+
 pub struct Entry {
     pub name: &'static str,
     pub url: &'static str,
     pub crs: u16,
+}
+
+impl Entry {
+    /// The file format, determined by the URL's extension.
+    pub fn format(&self) -> Option<Format> {
+        if self.url.ends_with(".geojson") {
+            Some(Format::GeoJson)
+        } else if self.url.ends_with(".tif") || self.url.ends_with(".tiff") {
+            Some(Format::GeoTiff)
+        } else {
+            None
+        }
+    }
 }
 
 pub struct Folder {
@@ -145,6 +164,16 @@ fn build() -> Vec<Folder> {
                 Entry {
                     name: "Graticules",
                     url: "https://storage.googleapis.com/rgis-library/World/Graticules.geojson",
+                    crs: 4326,
+                },
+                Entry {
+                    name: "Shaded Relief",
+                    url: "https://storage.googleapis.com/rgis-library/World/Shaded-Relief.tif",
+                    crs: 4326,
+                },
+                Entry {
+                    name: "Natural Earth Shaded Relief",
+                    url: "https://storage.googleapis.com/rgis-library/World/Natural-Earth-Shaded-Relief.tif",
                     crs: 4326,
                 },
             ],
@@ -478,4 +507,23 @@ fn build() -> Vec<Folder> {
 pub fn get() -> &'static Vec<Folder> {
     static LIBRARY: sync::OnceLock<Vec<Folder>> = sync::OnceLock::new();
     LIBRARY.get_or_init(build)
+}
+
+#[cfg(test)]
+mod tests {
+    fn all_entries<'a>(folders: &'a [super::Folder], out: &mut Vec<&'a super::Entry>) {
+        for folder in folders {
+            out.extend(&folder.entries);
+            all_entries(&folder.sub_folders, out);
+        }
+    }
+
+    #[test]
+    fn every_entry_has_a_known_format() {
+        let mut entries = vec![];
+        all_entries(super::get(), &mut entries);
+        for entry in entries {
+            assert!(entry.format().is_some(), "unknown format: {}", entry.url);
+        }
+    }
 }

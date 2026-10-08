@@ -80,6 +80,7 @@ pub enum AddLayerOutput {
     LoadFromLibrary {
         name: String,
         url: String,
+        file_format: FileFormat,
         source_crs: rgis_primitives::Crs,
     },
     OpenFile,
