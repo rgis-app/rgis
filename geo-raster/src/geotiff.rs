@@ -39,36 +39,15 @@ impl GeoTiffSource {
         let width = ifd.image_width();
         let height = ifd.image_height();
 
-        // Read geo-referencing tags: try tiepoint+scale first, then ModelTransformationTag
-        let (origin_x, origin_y, scale_x, scale_y) =
-            if let (Some(tiepoint), Some(scale)) =
-                (ifd.model_tiepoint(), ifd.model_pixel_scale())
-            {
-                let origin_x = *tiepoint.get(3).ok_or(Error::MissingGeoInfo)?;
-                let origin_y = *tiepoint.get(4).ok_or(Error::MissingGeoInfo)?;
-                let scale_x = *scale.first().ok_or(Error::MissingGeoInfo)?;
-                let scale_y = *scale.get(1).ok_or(Error::MissingGeoInfo)?;
-                (origin_x, origin_y, scale_x, scale_y)
-            } else if let Some(matrix) = ifd.model_transformation() {
-                let scale_x = *matrix.first().ok_or(Error::MissingGeoInfo)?;
-                // Negate matrix[5] to match the positive convention used by ModelPixelScaleTag
-                let scale_y = -(*matrix.get(5).ok_or(Error::MissingGeoInfo)?);
-                let origin_x = *matrix.get(3).ok_or(Error::MissingGeoInfo)?;
-                let origin_y = *matrix.get(7).ok_or(Error::MissingGeoInfo)?;
-                (origin_x, origin_y, scale_x, scale_y)
-            } else {
-                return Err(Error::MissingGeoInfo);
-            };
-
-        let min_x = origin_x;
-        let max_y = origin_y;
-        let max_x = origin_x + scale_x * f64::from(width);
-        let min_y = origin_y - scale_y * f64::from(height);
-
-        let extent = geo_types::Rect::new(
-            geo_types::coord! { x: min_x, y: min_y },
-            geo_types::coord! { x: max_x, y: max_y },
-        );
+        let raster_type = ifd.geo_key_directory().and_then(|gkd| gkd.raster_type);
+        let extent = compute_extent(
+            ifd.model_tiepoint(),
+            ifd.model_pixel_scale(),
+            ifd.model_transformation(),
+            raster_type,
+            width,
+            height,
+        )?;
 
         let epsg_code = ifd.geo_key_directory().and_then(|gkd| gkd.epsg_code());
 
@@ -277,6 +256,60 @@ impl GeoTiffSource {
     }
 }
 
+/// `GTRasterTypeGeoKey` value meaning the georeferenced point of a pixel is
+/// its center rather than its top-left corner (`RasterPixelIsArea` = 1).
+const RASTER_PIXEL_IS_POINT: u16 = 2;
+
+/// Compute the extent covered by the raster's pixels (outer pixel edges).
+///
+/// Supports a single `ModelTiepointTag` + `ModelPixelScaleTag`, or a
+/// north-up `ModelTransformationTag` (rotation/shear terms are ignored).
+fn compute_extent(
+    tiepoint: Option<&[f64]>,
+    pixel_scale: Option<&[f64]>,
+    transformation: Option<&[f64]>,
+    raster_type: Option<u16>,
+    width: u32,
+    height: u32,
+) -> Result<geo_types::Rect<f64>, Error> {
+    // Map raster space (i, j) → model space (x, y) as
+    // x = origin_x + i * scale_x, y = origin_y - j * scale_y.
+    let (mut origin_x, mut origin_y, scale_x, scale_y) =
+        if let (Some(tiepoint), Some(scale)) = (tiepoint, pixel_scale) {
+            let [i, j, _k, x, y, ..] = tiepoint else {
+                return Err(Error::MissingGeoInfo);
+            };
+            let [scale_x, scale_y, ..] = scale else {
+                return Err(Error::MissingGeoInfo);
+            };
+            // The tiepoint ties raster point (i, j) to model point (x, y);
+            // it's usually, but not necessarily, the (0, 0) corner.
+            (x - i * scale_x, y + j * scale_y, *scale_x, *scale_y)
+        } else if let Some(matrix) = transformation {
+            let (Some(&scale_x), Some(&neg_scale_y), Some(&origin_x), Some(&origin_y)) =
+                (matrix.first(), matrix.get(5), matrix.get(3), matrix.get(7))
+            else {
+                return Err(Error::MissingGeoInfo);
+            };
+            // Negate matrix[5] to match the positive convention used by ModelPixelScaleTag
+            (origin_x, origin_y, scale_x, -neg_scale_y)
+        } else {
+            return Err(Error::MissingGeoInfo);
+        };
+
+    // With PixelIsPoint, raster point (0, 0) is the *center* of the top-left
+    // pixel, so its outer corner is half a pixel up and to the left.
+    if raster_type == Some(RASTER_PIXEL_IS_POINT) {
+        origin_x -= scale_x / 2.0;
+        origin_y += scale_y / 2.0;
+    }
+
+    Ok(geo_types::Rect::new(
+        geo_types::coord! { x: origin_x, y: origin_y - scale_y * f64::from(height) },
+        geo_types::coord! { x: origin_x + scale_x * f64::from(width), y: origin_y },
+    ))
+}
+
 /// Convert tile data from planar layout [bands, height, width] to chunky layout [height, width, bands].
 fn planar_to_chunky(data: TypedArray, bands: usize, height: usize, width: usize) -> TypedArray {
     match data {
@@ -424,5 +457,85 @@ fn stitch_tiles_u16(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bounds(r: geo_types::Rect<f64>) -> [f64; 4] {
+        [r.min().x, r.min().y, r.max().x, r.max().y]
+    }
+
+    #[test]
+    fn extent_from_tiepoint_at_origin() {
+        let e = compute_extent(
+            Some(&[0.0, 0.0, 0.0, -180.0, 90.0, 0.0]),
+            Some(&[0.1, 0.1, 0.0]),
+            None,
+            Some(1),
+            3600,
+            1800,
+        )
+        .unwrap();
+        let [a, b, c, d] = bounds(e);
+        assert!((a + 180.0).abs() < 1e-9 && (b + 90.0).abs() < 1e-9);
+        assert!((c - 180.0).abs() < 1e-9 && (d - 90.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn extent_from_tiepoint_not_at_origin() {
+        // Raster point (10, 20) is tied to (-179, 88), so (0, 0) is at
+        // (-180, 90).
+        let e = compute_extent(
+            Some(&[10.0, 20.0, 0.0, -179.0, 88.0, 0.0]),
+            Some(&[0.1, 0.1, 0.0]),
+            None,
+            None,
+            3600,
+            1800,
+        )
+        .unwrap();
+        let [a, b, c, d] = bounds(e);
+        assert!((a + 180.0).abs() < 1e-9 && (b + 90.0).abs() < 1e-9, "{e:?}");
+        assert!((c - 180.0).abs() < 1e-9 && (d - 90.0).abs() < 1e-9, "{e:?}");
+    }
+
+    #[test]
+    fn extent_pixel_is_point_shifts_half_pixel() {
+        // Pixel centers span -179.95..179.95, 89.95..-89.95.
+        let e = compute_extent(
+            Some(&[0.0, 0.0, 0.0, -179.95, 89.95, 0.0]),
+            Some(&[0.1, 0.1, 0.0]),
+            None,
+            Some(RASTER_PIXEL_IS_POINT),
+            3600,
+            1800,
+        )
+        .unwrap();
+        let [a, b, c, d] = bounds(e);
+        assert!((a + 180.0).abs() < 1e-9 && (b + 90.0).abs() < 1e-9, "{e:?}");
+        assert!((c - 180.0).abs() < 1e-9 && (d - 90.0).abs() < 1e-9, "{e:?}");
+    }
+
+    #[test]
+    fn extent_from_model_transformation() {
+        #[rustfmt::skip]
+        let matrix = [
+            0.1, 0.0, 0.0, -180.0,
+            0.0, -0.1, 0.0, 90.0,
+            0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ];
+        let e = compute_extent(None, None, Some(&matrix), None, 3600, 1800).unwrap();
+        let [a, b, c, d] = bounds(e);
+        assert!((a + 180.0).abs() < 1e-9 && (b + 90.0).abs() < 1e-9, "{e:?}");
+        assert!((c - 180.0).abs() < 1e-9 && (d - 90.0).abs() < 1e-9, "{e:?}");
+    }
+
+    #[test]
+    fn extent_requires_georeferencing() {
+        assert!(compute_extent(None, None, None, None, 10, 10).is_err());
     }
 }
