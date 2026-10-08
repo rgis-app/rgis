@@ -61,4 +61,21 @@ mod tests {
         assert!(raster.height > 0);
         assert_eq!(raster.format, RasterFormat::Rgba8);
     }
+
+    /// A PixelIsPoint raster's tiepoint is a pixel *center*; the extent must
+    /// still cover the outer pixel edges (as GDAL reports it).
+    #[tokio::test]
+    async fn test_pixel_is_point_extent_matches_gdal() {
+        let bytes = bytes::Bytes::from(
+            std::fs::read("../geotiff-test-data/rasterio_generated/fixtures/pixel_as_point.tif")
+                .expect("read test file"),
+        );
+        let raster = GeoTiffSource::from_bytes(bytes)
+            .load()
+            .await
+            .expect("load GeoTIFF");
+        // `gdalinfo`: Upper Left (-180, 24), Lower Right (-138, -18).
+        let (min, max) = (raster.extent.min(), raster.extent.max());
+        assert_eq!((min.x, min.y, max.x, max.y), (-180.0, -18.0, -138.0, 24.0));
+    }
 }

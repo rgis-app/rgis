@@ -15,6 +15,5 @@ geo-projected = { path = "../geo-projected" }
 rgis-events = { path = "../rgis-events" }
 rgis-primitives = { path = "../rgis-primitives" }
 rgis-layers = { path = "../rgis-layers" }
-geo-geodesy = { workspace = true }
 rgis-units = { path = "../rgis-units" }
 rgis-crs = { path = "../rgis-crs" }

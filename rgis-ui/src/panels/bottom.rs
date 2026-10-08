@@ -22,27 +22,16 @@ pub fn projected_to_latlng(
 ) -> Option<(f64, f64)> {
     let geodesy_ctx_inner = geodesy_ctx.read().ok()?;
 
-    let transformer = geo_geodesy::Transformer::from_geodesy(
+    let transformer = rgis_crs::CrsTransformer::from_parts(
         &*geodesy_ctx_inner,
-        target_crs.0.op_handle,
-        wgs84_op_handle.0,
-        true, // WGS84 is geographic
-    )
-    .ok()?;
+        (target_crs.0.op_handle, target_crs.0.is_geographic()),
+        (wgs84_op_handle.0, true), // WGS84 is geographic
+    );
 
-    let x = mouse_pos.0.x.0;
-    let y = mouse_pos.0.y.0;
-    let mut point = geo::Geometry::Point(geo::Point::new(x, y));
-    transformer.transform(&mut point).ok()?;
-
-    if let geo::Geometry::Point(p) = point {
-        let lng = p.x();
-        let lat = p.y();
-        if lat.is_finite() && lng.is_finite() {
-            return Some((lat, lng));
-        }
-    }
-    None
+    let p = transformer
+        .transform_coord(geo::coord! { x: mouse_pos.0.x.0, y: mouse_pos.0.y.0 })
+        .ok()?;
+    (p.y.is_finite() && p.x.is_finite()).then_some((p.y, p.x))
 }
 
 impl Bottom<'_> {

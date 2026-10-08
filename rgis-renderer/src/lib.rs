@@ -182,49 +182,22 @@ fn spawn_raster(
 
     let image_handle = images.add(image);
 
-    // Build a mesh from the projected grid
-    let cols = grid.cols as usize;
-    let rows = grid.rows as usize;
-    let stride = cols + 1;
-
-    let mut positions: Vec<[f32; 3]> = Vec::new();
-    let mut uvs: Vec<[f32; 2]> = Vec::new();
-    let mut indices: Vec<u32> = Vec::new();
+    // Build a mesh from the projected grid. Every grid vertex is emitted (even
+    // invalid ones, which no triangle references) so grid indices can be used
+    // as mesh indices directly.
+    let positions: Vec<[f32; 3]> = grid
+        .positions
+        .iter()
+        .map(|&[x, y]| [x, y, 0.0])
+        .collect();
+    let uvs = grid.uvs.clone();
+    let indices: Vec<u32> = grid
+        .triangles()
+        .flatten()
+        .map(|i| i as u32)
+        .collect();
 
     let z_index = ZIndex::calculate(layer_index, RenderEntityType::Raster);
-
-    // For each grid cell, emit two triangles if all four corner vertices are valid
-    for row in 0..rows {
-        for col in 0..cols {
-            let tl = row * stride + col;
-            let tr = row * stride + col + 1;
-            let bl = (row + 1) * stride + col;
-            let br = (row + 1) * stride + col + 1;
-
-            if !grid.valid[tl] || !grid.valid[tr] || !grid.valid[bl] || !grid.valid[br] {
-                continue;
-            }
-
-            let base = positions.len() as u32;
-
-            // Emit 4 vertices for this quad
-            for &idx in &[tl, tr, bl, br] {
-                let r = idx / stride;
-                let c = idx % stride;
-                let pos = grid.positions[idx];
-                positions.push([pos[0], pos[1], 0.0]);
-                uvs.push([c as f32 / cols as f32, 1.0 - r as f32 / rows as f32]);
-            }
-
-            // Two triangles: tl-bl-tr, tr-bl-br
-            indices.push(base);     // tl
-            indices.push(base + 2); // bl
-            indices.push(base + 1); // tr
-            indices.push(base + 1); // tr
-            indices.push(base + 2); // bl
-            indices.push(base + 3); // br
-        }
-    }
 
     let mut mesh = Mesh::new(
         bevy::mesh::PrimitiveTopology::TriangleList,

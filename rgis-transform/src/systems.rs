@@ -21,6 +21,8 @@ fn handle_layer_created_events(
             rgis_layers::LayerData::Raster { raster, .. } => {
                 job_spawner.spawn(crate::jobs::ReprojectRasterExtentJob {
                     extent: raster.extent,
+                    width_px: raster.width,
+                    height_px: raster.height,
                     layer_id: event.0,
                     source_crs: crs.0.clone(),
                     target_crs: target_crs.0.clone(),
@@ -137,6 +139,8 @@ fn handle_crs_changed_events(
             rgis_layers::LayerData::Raster { raster, .. } => {
                 job_spawner.spawn(crate::jobs::ReprojectRasterExtentJob {
                     extent: raster.extent,
+                    width_px: raster.width,
+                    height_px: raster.height,
                     layer_id: *layer_id,
                     source_crs: crs.0.clone(),
                     target_crs: target_crs.0.clone(),

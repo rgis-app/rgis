@@ -3,6 +3,9 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use rgis_primitives::Crs;
 
+mod transform;
+pub use transform::{lon_lat_to_crs, CrsTransformer, TransformError};
+
 // --- Geodesy context (formerly rgis-geodesy) ---
 
 /// Cached WGS 84 (EPSG:4326) operation handle, created once at startup.
