@@ -348,3 +348,34 @@ fn raster_and_vector_stay_registered() {
     }
     assert!(failures.is_empty(), "misregistered:\n{}", failures.join("\n"));
 }
+
+/// Small, high-resolution rasters (drone/satellite imagery with cm-scale
+/// pixels) must not drive grid refinement to its cap: over a few tens of
+/// metres no projection curves measurably. Measuring the grid's error with
+/// f32 positions once made them refine to 2^18 cells, hanging the web app.
+#[test]
+fn small_high_res_rasters_keep_a_coarse_grid() {
+    let mut ctx = geodesy::ctx::Minimal::new();
+    // Parameters of fixtures in geotiff-test-data/real_data.
+    let cases = [
+        // hot-oam/68077a72c46a9912474701ef.tif
+        (32613, rect(246_690.034, 4_309_980.042, 246_739.982, 4_310_030.042), [999, 1000]),
+        // vantor/maxar_opendata_yellowstone_visual.tif
+        (32612, rect(529_843.75, 5_035_117.188, 529_882.812, 5_035_156.25), [128, 128]),
+        // umbra/sydney_airport_GEC.tif (approximate, unrotated)
+        (4326, rect(150.7539, -33.8896, 150.7564, -33.8884), [512, 512]),
+    ];
+    for (raster_code, extent, size) in cases {
+        let raster_crs = crs(&mut ctx, raster_code);
+        for &target in TARGETS {
+            let target_crs = crs(&mut ctx, target);
+            let grid = project_raster_grid(&ctx, extent, size, &raster_crs, &target_crs);
+            assert!(
+                grid.cols * grid.rows <= 64 * 64,
+                "EPSG:{raster_code} -> EPSG:{target}: grid {}x{}",
+                grid.cols,
+                grid.rows,
+            );
+        }
+    }
+}

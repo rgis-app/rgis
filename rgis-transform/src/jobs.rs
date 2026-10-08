@@ -125,11 +125,28 @@ pub(crate) fn project_raster_grid<C: Context>(
     };
 
     let (mut cols, mut rows) = (MIN_GRID, MIN_GRID);
+    // Per axis: whether refining it stopped helping.
+    let mut stuck = [false; 2];
+    // Errors from the previous pass, and which axes it then refined.
+    let mut prev: Option<([f64; 3], [bool; 2])> = None;
     loop {
         let grid = sampler.sample(cols, rows);
         let [err_x, err_y, err_diagonal] = sampler.max_error_texels(&grid);
-        let can_refine_x = cols < MAX_GRID && cols * 2 * rows <= MAX_GRID_CELLS;
-        let can_refine_y = rows < MAX_GRID && cols * rows * 2 <= MAX_GRID_CELLS;
+        // Halving the cell size should shrink the error ~4×. If it didn't
+        // even halve, more refinement won't help (e.g. near a singularity),
+        // so stop refining that axis rather than run to the cap.
+        if let Some((prev_err, [refined_x, refined_y])) = prev {
+            let not_converging = |now: f64, before: f64| {
+                now > MAX_GRID_ERROR_TEXELS && now > before / 2.0
+            };
+            stuck[0] |= refined_x && not_converging(err_x, prev_err[0]);
+            stuck[1] |= refined_y && not_converging(err_y, prev_err[1]);
+            if refined_x && refined_y && not_converging(err_diagonal, prev_err[2]) {
+                stuck = [true; 2];
+            }
+        }
+        let can_refine_x = !stuck[0] && cols < MAX_GRID && cols * 2 * rows <= MAX_GRID_CELLS;
+        let can_refine_y = !stuck[1] && rows < MAX_GRID && cols * rows * 2 <= MAX_GRID_CELLS;
         // Diagonal error usually comes from curvature along one axis, and
         // refining that axis fixes both. Only if neither axis needs refining
         // is it a cross-axis effect that calls for refining both.
@@ -144,13 +161,51 @@ pub(crate) fn project_raster_grid<C: Context>(
             refine_y = !refine_x;
         }
         if !refine_x && !refine_y {
-            return grid;
+            return grid.into_grid();
         }
+        prev = Some(([err_x, err_y, err_diagonal], [refine_x, refine_y]));
         if refine_x {
             cols *= 2;
         }
         if refine_y {
             rows *= 2;
+        }
+    }
+}
+
+/// A sampled grid at full precision, before conversion to the f32 mesh
+/// representation.
+struct SampledGrid {
+    cols: u32,
+    rows: u32,
+    positions: Vec<[f64; 2]>,
+    uvs: Vec<[f64; 2]>,
+    valid: Vec<bool>,
+}
+
+impl SampledGrid {
+    fn into_grid(self) -> rgis_layers::ProjectedRasterGrid {
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        for (&[x, y], _) in self.positions.iter().zip(&self.valid).filter(|(_, v)| **v) {
+            min_x = min_x.min(x);
+            min_y = min_y.min(y);
+            max_x = max_x.max(x);
+            max_y = max_y.max(y);
+        }
+
+        rgis_layers::ProjectedRasterGrid {
+            cols: self.cols,
+            rows: self.rows,
+            positions: self.positions.iter().map(|&[x, y]| [x as f32, y as f32]).collect(),
+            uvs: self.uvs.iter().map(|&[u, v]| [u as f32, v as f32]).collect(),
+            valid: self.valid,
+            extent: geo::Rect::new(
+                geo::coord! { x: min_x, y: min_y },
+                geo::coord! { x: max_x, y: max_y },
+            ),
         }
     }
 }
@@ -177,7 +232,7 @@ impl<C: Context> GridSampler<'_, C> {
         (out.x.is_finite() && out.y.is_finite()).then_some(out)
     }
 
-    fn sample(&self, cols: u32, rows: u32) -> rgis_layers::ProjectedRasterGrid {
+    fn sample(&self, cols: u32, rows: u32) -> SampledGrid {
         let num_verts = ((cols + 1) * (rows + 1)) as usize;
         let mut positions = Vec::with_capacity(num_verts);
         let mut uvs = Vec::with_capacity(num_verts);
@@ -189,12 +244,12 @@ impl<C: Context> GridSampler<'_, C> {
                 let src = self.source_coord(f64::from(col), f64::from(row), cols, rows);
                 // Texture row 0 is the top (max y) of the raster.
                 uvs.push([
-                    ((src.x - r.min().x) / r.width()) as f32,
-                    ((r.max().y - src.y) / r.height()) as f32,
+                    (src.x - r.min().x) / r.width(),
+                    (r.max().y - src.y) / r.height(),
                 ]);
                 match self.project(src) {
                     Some(c) => {
-                        positions.push([c.x as f32, c.y as f32]);
+                        positions.push([c.x, c.y]);
                         valid.push(true);
                     }
                     None => {
@@ -207,27 +262,12 @@ impl<C: Context> GridSampler<'_, C> {
 
         filter_outliers(&positions, &mut valid);
 
-        let mut min_x = f64::INFINITY;
-        let mut min_y = f64::INFINITY;
-        let mut max_x = f64::NEG_INFINITY;
-        let mut max_y = f64::NEG_INFINITY;
-        for (&[x, y], _) in positions.iter().zip(&valid).filter(|(_, v)| **v) {
-            min_x = min_x.min(f64::from(x));
-            min_y = min_y.min(f64::from(y));
-            max_x = max_x.max(f64::from(x));
-            max_y = max_y.max(f64::from(y));
-        }
-
-        rgis_layers::ProjectedRasterGrid {
+        SampledGrid {
             cols,
             rows,
             positions,
             uvs,
             valid,
-            extent: geo::Rect::new(
-                geo::coord! { x: min_x, y: min_y },
-                geo::coord! { x: max_x, y: max_y },
-            ),
         }
     }
 
@@ -235,14 +275,18 @@ impl<C: Context> GridSampler<'_, C> {
     /// midpoint of a grid edge and where that midpoint actually projects to,
     /// for horizontal edges, vertical edges, and cell diagonals (the shared
     /// edge of each cell's two triangles), respectively.
-    fn max_error_texels(&self, grid: &rgis_layers::ProjectedRasterGrid) -> [f64; 3] {
+    ///
+    /// Uses full-precision positions: the f32 rounding of the final mesh is
+    /// not something a finer grid can fix, and for a small, high-resolution
+    /// raster (e.g. 5 cm drone imagery) it can exceed a texel by itself.
+    fn max_error_texels(&self, grid: &SampledGrid) -> [f64; 3] {
         let (cols, rows) = (grid.cols, grid.rows);
         let stride = cols as usize + 1;
         let idx = |col: u32, row: u32| row as usize * stride + col as usize;
         let [w_px, h_px] = self.raster_size_px.map(f64::from);
-        let pos = |i: usize| grid.positions[i].map(f64::from);
+        let pos = |i: usize| grid.positions[i];
         let texel = |i: usize| {
-            let [u, v] = grid.uvs[i].map(f64::from);
+            let [u, v] = grid.uvs[i];
             [u * w_px, v * h_px]
         };
 
@@ -358,12 +402,12 @@ fn intersect(a: geo::Rect<f64>, b: geo::Rect<f64>) -> Option<geo::Rect<f64>> {
 /// Invalidate outlier positions using IQR-based detection.
 /// This handles near-polar Mercator vertices and other projection
 /// singularities that produce extreme but finite values.
-fn filter_outliers(positions: &[[f32; 2]], valid: &mut [bool]) {
+fn filter_outliers(positions: &[[f64; 2]], valid: &mut [bool]) {
     let mut valid_xs: Vec<f64> = Vec::new();
     let mut valid_ys: Vec<f64> = Vec::new();
     for (&[x, y], _) in positions.iter().zip(valid.iter()).filter(|(_, v)| **v) {
-        valid_xs.push(f64::from(x));
-        valid_ys.push(f64::from(y));
+        valid_xs.push(x);
+        valid_ys.push(y);
     }
     if valid_xs.len() < 4 {
         return;
@@ -385,7 +429,6 @@ fn filter_outliers(positions: &[[f32; 2]], valid: &mut [bool]) {
     let hi_y = q3_y + 3.0 * iqr_y;
 
     for (&[x, y], is_valid) in positions.iter().zip(valid.iter_mut()) {
-        let (x, y) = (f64::from(x), f64::from(y));
         if *is_valid && (x < lo_x || x > hi_x || y < lo_y || y > hi_y) {
             *is_valid = false;
         }
