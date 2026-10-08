@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+arrow = { version = "58", default-features = false }
 bevy = { workspace = true }
 colorous = { workspace = true }
 geo-features = { path = "../geo-features" }

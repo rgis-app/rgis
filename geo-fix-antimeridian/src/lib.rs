@@ -32,14 +32,20 @@ use geo::{Coord, CoordFloat, LineString, MultiLineString, MultiPolygon, Polygon}
 fn normalize_lon<T: CoordFloat>(lon: T) -> T {
     let full = T::from(360.0).unwrap();
     let half = T::from(180.0).unwrap();
-    let mut result = lon;
-    while result > half {
-        result = result - full;
+    if lon >= -half && lon <= half {
+        return lon;
     }
-    while result < -half {
+
+    let mut result = (lon + half) % full;
+    if result < T::zero() {
         result = result + full;
     }
-    result
+    let result = result - half;
+    if result == -half && lon > T::zero() {
+        half
+    } else {
+        result
+    }
 }
 
 /// Normalize all coordinates in a list to have longitudes in [-180, 180].
@@ -610,6 +616,28 @@ pub fn fix_geometry_with_method(
 mod tests {
     use super::*;
     use geo::{line_string, polygon};
+
+    #[test]
+    fn normalize_lon_wraps_into_range() {
+        assert_eq!(normalize_lon(0.0), 0.0);
+        assert_eq!(normalize_lon(180.0), 180.0);
+        assert_eq!(normalize_lon(-180.0), -180.0);
+        assert_eq!(normalize_lon(181.0), -179.0);
+        assert_eq!(normalize_lon(-181.0), 179.0);
+        assert_eq!(normalize_lon(540.0), 180.0);
+        assert_eq!(normalize_lon(-540.0), -180.0);
+        assert_eq!(normalize_lon(720.0), 0.0);
+    }
+
+    #[test]
+    fn normalize_lon_terminates_on_extreme_values() {
+        let lon = normalize_lon(1e20);
+        assert!((-180.0..=180.0).contains(&lon));
+        let lon = normalize_lon(-1e20);
+        assert!((-180.0..=180.0).contains(&lon));
+        assert!(normalize_lon(f64::INFINITY).is_nan());
+        assert!(normalize_lon(f64::NAN).is_nan());
+    }
 
     #[test]
     fn no_crossing() {
