@@ -316,13 +316,14 @@ fn render_add_layer_window(
             AddLayerOutput::LoadFromLibrary {
                 name,
                 url,
+                file_format,
                 source_crs,
             } => {
                 events.load_file_event_writer.write(
                     rgis_events::LoadFileMessage::FromNetwork {
                         name,
                         url,
-                        file_format: geo_file_loader::FileFormat::GeoJson,
+                        file_format,
                         source_crs,
                     },
                 );
