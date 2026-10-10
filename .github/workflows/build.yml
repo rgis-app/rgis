@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           submodules: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -44,10 +44,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           submodules: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -69,7 +69,7 @@ jobs:
           sudo apt-get clean && sudo apt-get update
           sudo apt-get install -y pkg-config libudev-dev libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev
       - name: Cache npm dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: www/node_modules
           key: npm-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
@@ -85,7 +85,7 @@ jobs:
       # The re-run below clears test-results/, so upload the first run's
       # traces before it does.
       - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() && steps.playwright.outcome == 'failure' }}
         with:
           name: playwright-test-results
@@ -96,14 +96,14 @@ jobs:
         run: cd www && npx playwright test --update-snapshots --retries=0
         continue-on-error: true
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: www/playwright-report/
           retention-days: 30
       - name: Upload Playwright snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-snapshots
@@ -121,10 +121,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           submodules: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -150,9 +150,9 @@ jobs:
       - name: Build
         run: ./.github/build.sh --release
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: www/dist/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
